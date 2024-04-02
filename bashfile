@@ -1,0 +1,17 @@
+#!/bin/bash
+# init-airflow.sh
+
+# Initialize the database
+airflow db init
+
+# Create an admin user (adjust the command with your desired username, password, etc.)
+airflow users create \
+  --username 'admin' \
+  --firstname 'Varad' \
+  --lastname 'Bhogayata' \
+  --role 'Admin' \
+  --email 'varadbhogayata78@gmail.com' \
+  --password 'Varad@1812'
+
+# Start the webserver (remove if you prefer to start it separately)
+airflow webserver
