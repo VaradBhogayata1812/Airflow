@@ -13,5 +13,6 @@ airflow users create \
   --email 'varadbhogayata78@gmail.com' \
   --password 'Varad@1812'
 
-# Start the webserver (remove if you prefer to start it separately)
-airflow webserver
+airflow connections add 'google_cloud_default' \
+  --conn-type 'google_cloud_platform' \
+  --conn-uri 'google-cloud-platform://?extra__google_cloud_platform__key_path=/path/to/your/keyfile.json'
