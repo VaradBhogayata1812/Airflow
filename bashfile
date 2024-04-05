@@ -15,4 +15,4 @@ airflow users create \
 
 airflow connections add 'google_cloud_default' \
   --conn-type 'google_cloud_platform' \
-  --conn-uri 'google-cloud-platform://?extra__google_cloud_platform__key_path=C:\Users\varad\OneDrive\Desktop\etl-project-418923-8dc23d8dbe8c
+  --conn-uri 'google-cloud-platform://?extra__google_cloud_platform__key_path=/keyfile.json'
