@@ -4,7 +4,7 @@
 # Initialize the database
 airflow db init
 
-# Create an admin user (adjust the command with your desired username, password, etc.)
+# Create an admin user
 airflow users create \
   --username 'admin' \
   --firstname 'Varad' \
@@ -13,5 +13,5 @@ airflow users create \
   --email 'varadbhogayata78@gmail.com' \
   --password 'Varad@1812'
 
-# Start the Airflow webserver in the background
-airflow webserver -p 8080 &
+# Start the webserver in the background
+airflow webserver -p 8080 -D
