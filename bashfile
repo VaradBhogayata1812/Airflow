@@ -1,3 +1,8 @@
+# Initialize the Airflow database
+echo "Initializing Airflow database..."
+airflow db init
+
+# Create an admin user
 create_admin() {
   echo "Creating admin user..."
   airflow users create \
@@ -10,12 +15,13 @@ create_admin() {
   echo "Admin user created."
 }
 
+create_admin
+
 # Start the scheduler in the background
 airflow scheduler &
 
 # Start the webserver in the background
 airflow webserver -p 8080 &
 
-# Wait for the background processes to finish (this will never happen in normal circumstances,
-# this line is to keep the script running)
+# Wait for the background processes to finish
 wait
