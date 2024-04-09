@@ -12,7 +12,3 @@ airflow users create \
   --role 'Admin' \
   --email 'varadbhogayata78@gmail.com' \
   --password 'Varad@1812'
-
-airflow connections add 'google_cloud_default' \
-  --conn-type 'google_cloud_platform' \
-  --conn-uri 'google-cloud-platform://?extra__google_cloud_platform__key_path=/keyfile.json'
