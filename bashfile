@@ -1,11 +1,5 @@
-#!/bin/bash
-# init-airflow.sh
-
-# Initialize the database
-airflow db init
-
-# Create an admin user if it doesn't exist
 create_admin() {
+  echo "Creating admin user..."
   airflow users create \
     --username 'admin' \
     --firstname 'Varad' \
@@ -13,6 +7,7 @@ create_admin() {
     --role 'Admin' \
     --email 'varadbhogayata78@gmail.com' \
     --password 'Varad@1812'
+  echo "Admin user created."
 }
 
 # Start the scheduler in the background
