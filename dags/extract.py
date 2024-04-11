@@ -28,6 +28,6 @@ with DAG(
     download_logs = GCSToLocalFilesystemOperator(
         task_id='download_logs',
         bucket='rawlogfiles',
-        object_name='logfiles/W3SVC1/', # Use wildcard to download all files in the folder
-        filename='Airflow/gsc/data', # Using execution date to organize files
+        object_name='W3SVC1/*', # Use wildcard to download all files in the folder
+        filename='/Airflow/gcs/data/{{ ds }}/file_{{ ds_nodash }}.log', # Organizing files by execution date
     )
