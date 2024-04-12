@@ -25,3 +25,6 @@ airflow webserver -p 8080 &
 
 # Wait for the background processes to finish
 wait
+
+# Example command to list buckets, add this to bashfile for debugging
+gsutil ls
