@@ -15,8 +15,6 @@ RUN apt-get update && \
 # Change back to the airflow user for security reasons
 USER airflow
 
-COPY etlkeys.json /opt/airflow/
-ENV GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/etlkeys.json
 COPY bashfile /bashfile
 COPY dags/ /opt/airflow/dags/
 ENTRYPOINT ["/bin/bash"]
