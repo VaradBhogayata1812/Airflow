@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y curl gnupg && \
 
 USER airflow
 
-COPY home/varadbhogayata78/etl-project-418923-8dc23d8dbe8c.json /opt/airflow/
+COPY home/varadbhogayata78/etl-project-418923-8dc23d8dbe8c.json/opt/airflow/
 ENV GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/etl-project-418923-8dc23d8dbe8c.json
 COPY bashfile /bashfile
 COPY dags/ /opt/airflow/dags/
