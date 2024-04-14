@@ -16,17 +16,23 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+def create_directory_if_not_exists(directory_path):
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path, exist_ok=True)
+
 def transform_log_file(file_path):
-    # Define columns based on IIS log format or use dynamic parsing if the format varies
     columns = [
         'date', 'time', 's-ip', 'cs-method', 'cs-uri-stem', 'cs-uri-query',
         's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'cs(Referer)',
         'sc-status', 'sc-substatus', 'sc-win32-status', 'time-taken'
     ]
     df = pd.read_csv(file_path, delim_whitespace=True, names=columns)
-    
-    # Add a new column for crawler detection
-    df['is_crawler'] = df.apply(lambda x: 'Yes' if 'robots.txt' in x['cs-uri-stem'] else 'No', axis=1)
+
+    # Convert cs-uri-stem to string to ensure it is iterable
+    df['cs-uri-stem'] = df['cs-uri-stem'].astype(str)
+
+    # Modify lambda to check for 'robots.txt' in a safe manner
+    df['is_crawler'] = df['cs-uri-stem'].apply(lambda x: 'Yes' if 'robots.txt' in x else 'No')
 
     # Assume subsequent requests from an IP that requested robots.txt are from the same crawler
     crawler_ips = df[df['is_crawler'] == 'Yes']['c-ip'].unique()
@@ -45,6 +51,7 @@ def transform_log_file(file_path):
 
     # Save the transformed data
     transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/')
+    create_directory_if_not_exists(os.path.dirname(transformed_path))
     df.to_csv(transformed_path, index=False)
     print(f"Transformed data saved to {transformed_path}")
 
