@@ -25,18 +25,23 @@ def transform_log_file(file_path):
     ]
     df = pd.read_csv(file_path, delim_whitespace=True, names=columns)
     
-    # Transformation: IP Geolocation Lookup
-    def get_geolocation(ip):
-        try:
-            response = requests.get(f'http://ip-api.com/json/{ip}')
-            json_response = response.json()
-            return json_response['country'], json_response['regionName'], json_response['city']
-        except Exception as e:
-            return 'Unknown', 'Unknown', 'Unknown'
-    
-    df['country'], df['region'], df['city'] = zip(*df['c-ip'].apply(get_geolocation))
+    # Add a new column for crawler detection
+    df['is_crawler'] = df.apply(lambda x: 'Yes' if 'robots.txt' in x['cs-uri-stem'] else 'No', axis=1)
 
-    # Additional transformations can be added here
+    # Assume subsequent requests from an IP that requested robots.txt are from the same crawler
+    crawler_ips = df[df['is_crawler'] == 'Yes']['c-ip'].unique()
+    df['is_crawler'] = df['c-ip'].apply(lambda ip: 'Yes' if ip in crawler_ips else 'No')
+
+    # # Transformation: IP Geolocation Lookup
+    # def get_geolocation(ip):
+    #     try:
+    #         response = requests.get(f'http://ip-api.com/json/{ip}')
+    #         json_response = response.json()
+    #         return json_response['country'], json_response['regionName'], json_response['city']
+    #     except Exception as e:
+    #         return 'Unknown', 'Unknown', 'Unknown'
+    
+    # df['country'], df['region'], df['city'] = zip(*df['c-ip'].apply(get_geolocation))
 
     # Save the transformed data
     transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/')
