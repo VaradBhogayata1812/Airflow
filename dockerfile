@@ -1,8 +1,8 @@
 # Using a newer stable version of Apache Airflow
 FROM apache/airflow:2.4.0
 
-## Running as root to install packages
-#USER root
+# # Running as root to install packages
+# USER root
 
 # # Install necessary tools and Google Cloud SDK
 # RUN apt-get update && \
