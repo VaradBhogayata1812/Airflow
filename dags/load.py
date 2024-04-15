@@ -28,7 +28,7 @@ def check_create_bucket(bucket_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     if not bucket.exists():
-        bucket.create(location='us')  # Specify your bucket's desired location
+        bucket.create(location='europe-north1')
         print(f"Bucket {bucket_name} created.")
     else:
         print(f"Bucket {bucket_name} already exists.")
