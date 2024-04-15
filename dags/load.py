@@ -1,10 +1,10 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow.operators.python import PythonOperator
 from datetime import timedelta
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator
-import glob
+import os
+from google.cloud import storage
 
 default_args = {
     'owner': 'airflow',
@@ -16,43 +16,59 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-BUCKET_NAME = 'your-bucket-name'
-GCS_PATH = 'path/to/your/gcs/folder'
+# Define the bucket name and GCS path for the transformed logs
+BUCKET_NAME = 'transformedlogfiles'
+GCS_PATH = 'transformed_logs/'
 LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/'  # Replace with the path where transformed files are stored
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
-def upload_files_to_gcs(bucket_name, gcs_path, local_path):
-    """
-    Uploads all files from the specified local path to GCS
-    """
-    hook = GCSHook()
-    files = glob.glob(f'{local_path}/*.log')
-    for file in files:
-        filename = file.split('/')[-1]
-        gcs_uri = f'{gcs_path}/{filename}'
-        hook.upload(bucket_name, gcs_uri, file)
-        print(f'Uploaded {file} to {gcs_uri}')
+def check_create_bucket(bucket_name):
+    """Checks if a GCS bucket exists and creates it if not."""
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    if not bucket.exists():
+        bucket.create(location='us')  # Specify your bucket's desired location
+        print(f"Bucket {bucket_name} created.")
+    else:
+        print(f"Bucket {bucket_name} already exists.")
+
+def upload_files_to_gcs(bucket_name, source_files_path):
+    """Uploads files from local filesystem to GCS."""
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
+    for file_name in files_to_upload:
+        blob = bucket.blob(GCS_PATH + file_name)
+        blob.upload_from_filename(source_files_path + file_name)
+        print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
 
 with DAG(
-    'load_logs_to_bigquery',
+\    'load_logs_to_bigquery',
     default_args=default_args,
-    description='A DAG to load transformed logs to BigQuery',
+    description='A DAG to load log files to BigQuery',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['load'],
+    tags=['etl', 'load'],
 ) as dag:
+    
+    # Task to check and create the GCS bucket if necessary
+    check_create_gcs_bucket = PythonOperator(
+        task_id='check_create_gcs_bucket',
+        python_callable=check_create_bucket,
+        op_kwargs={'bucket_name': BUCKET_NAME},
+    )
 
+    # Task to upload files to GCS, this assumes you have already created a list of file paths to upload
     upload_to_gcs_task = PythonOperator(
-        task_id='upload_logs_to_gcs',
+        task_id='upload_to_gcs',
         python_callable=upload_files_to_gcs,
         op_kwargs={
             'bucket_name': BUCKET_NAME,
-            'gcs_path': GCS_PATH,
-            'local_path': LOCAL_TRANSFORMED_PATH,
+            'source_files_path': '/opt/airflow/transformed/',
         },
     )
-
+    
     # Task to create an empty table in BigQuery if it doesn't exist
     create_table_task = BigQueryCreateEmptyTableOperator(
         task_id='create_bigquery_table',
@@ -81,5 +97,5 @@ with DAG(
         },
     )
 
-    # Set the task dependencies
-    upload_to_gcs_task >> create_table_task >> load_to_bq_task
+# Set up task dependencies
+check_create_gcs_bucket >> upload_to_gcs_task>> create_table_task >> load_to_bq_task
