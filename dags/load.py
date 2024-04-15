@@ -44,7 +44,7 @@ def upload_files_to_gcs(bucket_name, source_files_path):
         print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
 
 with DAG(
-\    'load_logs_to_bigquery',
+    'load_logs_to_bigquery',
     default_args=default_args,
     description='A DAG to load log files to BigQuery',
     schedule_interval=timedelta(days=1),
