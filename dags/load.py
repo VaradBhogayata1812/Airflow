@@ -84,7 +84,7 @@ with DAG(
         task_id='load_to_bigquery',
         configuration={
             'load': {
-                'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}/*.log'],
+                'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.log'],
                 'destinationTable': {
                     'projectId': 'etl-project-418923',
                     'datasetId': DATASET_NAME,
