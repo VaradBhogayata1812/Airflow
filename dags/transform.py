@@ -30,19 +30,28 @@ def check_create_bucket(bucket_name):
         print(f"Bucket {bucket_name} already exists.")
 
 def replace_files_in_gcs(bucket_name, source_files_path, destination_blob_path):
-    """Deletes existing files in GCS and uploads new ones."""
+    """Deletes existing files in GCS and uploads new ones with detailed logging and error handling."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
-    for blob in blobs:
-        blob.delete()
-        print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
+    try:
+        blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
+        for blob in blobs:
+            blob.delete()
+            print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
+    except Exception as e:
+        print(f"Error deleting files in GCS: {e}")
 
-    files_to_upload = [f for f in os.listdir(source_files_path) if f.endswith('.csv')]
-    for file_name in files_to_upload:
-        blob = bucket.blob(os.path.join(destination_blob_path, file_name))
-        blob.upload_from_filename(os.path.join(source_files_path, file_name))
-        print(f"Uploaded {file_name} to GCS at {destination_blob_path}")
+    try:
+        files_to_upload = [f for f in os.listdir(source_files_path) if f.endswith('.csv')]
+        print(f"Files to upload: {files_to_upload}")
+        if not files_to_upload:
+            print("No files to upload.")
+        for file_name in files_to_upload:
+            blob = bucket.blob(os.path.join(destination_blob_path, file_name))
+            blob.upload_from_filename(os.path.join(source_files_path, file_name))
+            print(f"Uploaded {file_name} to GCS at {destination_blob_path}")
+    except Exception as e:
+        print(f"Error uploading files to GCS: {e}")
 
 def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
@@ -56,7 +65,7 @@ def transform_log_file(file_path):
     ]
     df = pd.read_csv(file_path, delim_whitespace=True, names=columns, header=None)
     df['is_crawler'] = df['cs-uri-stem'].apply(lambda x: 'Yes' if 'robots.txt' in str(x) else 'No')
-    transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/')
+    transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
     create_directory_if_not_exists(os.path.dirname(transformed_path))
     df.to_csv(transformed_path, index=False)
     print(f"Transformed data saved to {transformed_path}")
