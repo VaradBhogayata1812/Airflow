@@ -117,5 +117,23 @@ with DAG(
         python_callable=transform_files_in_directory,
         op_kwargs={'directory_path': '/opt/airflow/gcs/data/W3SVC1/'},
     )
+    
+    # Task to check and create the GCS bucket if necessary
+    check_create_gcs_bucket = PythonOperator(
+        task_id='check_create_gcs_bucket',
+        python_callable=check_create_bucket,
+        op_kwargs={'bucket_name': BUCKET_NAME},
+    )
+
+    # Task to upload files to GCS, this assumes you have already created a list of file paths to upload
+    replace_files_in_gcs = PythonOperator(
+        task_id='upload_to_gcs',
+        python_callable= replace_files_in_gcs,
+        op_kwargs={
+            'bucket_name': BUCKET_NAME,
+            'source_files_path': '/opt/airflow/transformed/W3SVC1/',
+            'destination_blob_path': GCS_PATH,
+        },
+    )
 
 transform_task
