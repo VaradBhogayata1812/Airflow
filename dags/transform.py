@@ -4,7 +4,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 import os
 import pandas as pd
-import requests
+from google.cloud import storage
 
 default_args = {
     'owner': 'airflow',
@@ -16,6 +16,9 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+BUCKET_NAME = 'transformedlogfiles'
+GCS_PATH = 'transformed_logs/'
+
 def check_create_bucket(bucket_name):
     """Checks if a GCS bucket exists and creates it if not."""
     client = storage.Client()
@@ -26,38 +29,20 @@ def check_create_bucket(bucket_name):
     else:
         print(f"Bucket {bucket_name} already exists.")
 
-# def upload_files_to_gcs(bucket_name, source_files_path):
-#     """Uploads files from local filesystem to GCS."""
-#     client = storage.Client()
-#     bucket = client.bucket(bucket_name)
-#     files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
-#     for file_name in files_to_upload:
-#         blob = bucket.blob(GCS_PATH + file_name)
-#         blob.upload_from_filename(source_files_path + file_name)
-#         print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
-
 def replace_files_in_gcs(bucket_name, source_files_path, destination_blob_path):
-    """Deletes existing files in GCS and uploads new ones from the local filesystem."""
+    """Deletes existing files in GCS and uploads new ones."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    
-    # List and delete existing files in the destination_blob_path
     blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
     for blob in blobs:
         blob.delete()
         print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
-    
-    # Upload new files from the local filesystem to GCS
-    files_to_upload = os.listdir(source_files_path)
+
+    files_to_upload = [f for f in os.listdir(source_files_path) if f.endswith('.csv')]
     for file_name in files_to_upload:
-        local_file_path = os.path.join(source_files_path, file_name)
-        if os.path.isfile(local_file_path):
-            try:
-                new_blob = bucket.blob(f"{destination_blob_path}{file_name}")
-                new_blob.upload_from_filename(local_file_path)
-                print(f"Uploaded {file_name} to GCS bucket {bucket_name} at {destination_blob_path}")
-            except Exception as e:
-                print(f"Failed to upload {file_name} to GCS. Error: {str(e)}")
+        blob = bucket.blob(os.path.join(destination_blob_path, file_name))
+        blob.upload_from_filename(os.path.join(source_files_path, file_name))
+        print(f"Uploaded {file_name} to GCS at {destination_blob_path}")
 
 def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
@@ -69,30 +54,8 @@ def transform_log_file(file_path):
         's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'cs(Referer)',
         'sc-status', 'sc-substatus', 'sc-win32-status', 'time-taken'
     ]
-    df = pd.read_csv(file_path, delim_whitespace=True, names=columns)
-
-    # Convert cs-uri-stem to string to ensure it is iterable
-    df['cs-uri-stem'] = df['cs-uri-stem'].astype(str)
-
-    # Modify lambda to check for 'robots.txt' in a safe manner
-    df['is_crawler'] = df['cs-uri-stem'].apply(lambda x: 'Yes' if 'robots.txt' in x else 'No')
-
-    # Assume subsequent requests from an IP that requested robots.txt are from the same crawler
-    crawler_ips = df[df['is_crawler'] == 'Yes']['c-ip'].unique()
-    df['is_crawler'] = df['c-ip'].apply(lambda ip: 'Yes' if ip in crawler_ips else 'No')
-
-    # # Transformation: IP Geolocation Lookup
-    # def get_geolocation(ip):
-    #     try:
-    #         response = requests.get(f'http://ip-api.com/json/{ip}')
-    #         json_response = response.json()
-    #         return json_response['country'], json_response['regionName'], json_response['city']
-    #     except Exception as e:
-    #         return 'Unknown', 'Unknown', 'Unknown'
-    
-    # df['country'], df['region'], df['city'] = zip(*df['c-ip'].apply(get_geolocation))
-
-    # Save the transformed data
+    df = pd.read_csv(file_path, delim_whitespace=True, names=columns, header=None)
+    df['is_crawler'] = df['cs-uri-stem'].apply(lambda x: 'Yes' if 'robots.txt' in str(x) else 'No')
     transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/')
     create_directory_if_not_exists(os.path.dirname(transformed_path))
     df.to_csv(transformed_path, index=False)
@@ -117,18 +80,16 @@ with DAG(
         python_callable=transform_files_in_directory,
         op_kwargs={'directory_path': '/opt/airflow/gcs/data/W3SVC1/'},
     )
-    
-    # Task to check and create the GCS bucket if necessary
+
     check_create_gcs_bucket = PythonOperator(
         task_id='check_create_gcs_bucket',
         python_callable=check_create_bucket,
         op_kwargs={'bucket_name': BUCKET_NAME},
     )
 
-    # Task to upload files to GCS, this assumes you have already created a list of file paths to upload
-    replace_files_in_gcs = PythonOperator(
+    upload_to_gcs_task = PythonOperator(
         task_id='upload_to_gcs',
-        python_callable= replace_files_in_gcs,
+        python_callable=replace_files_in_gcs,
         op_kwargs={
             'bucket_name': BUCKET_NAME,
             'source_files_path': '/opt/airflow/transformed/W3SVC1/',
@@ -136,4 +97,5 @@ with DAG(
         },
     )
 
-transform_task
+    # Setting up task dependencies
+    check_create_gcs_bucket >> transform_task >> upload_to_gcs_task
