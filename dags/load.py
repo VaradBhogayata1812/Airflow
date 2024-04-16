@@ -23,48 +23,48 @@ LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'  # Replace with the 
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
-def check_create_bucket(bucket_name):
-    """Checks if a GCS bucket exists and creates it if not."""
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
-    if not bucket.exists():
-        bucket.create(location='europe-north1')
-        print(f"Bucket {bucket_name} created.")
-    else:
-        print(f"Bucket {bucket_name} already exists.")
-
-# def upload_files_to_gcs(bucket_name, source_files_path):
-#     """Uploads files from local filesystem to GCS."""
+# def check_create_bucket(bucket_name):
+#     """Checks if a GCS bucket exists and creates it if not."""
 #     client = storage.Client()
 #     bucket = client.bucket(bucket_name)
-#     files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
-#     for file_name in files_to_upload:
-#         blob = bucket.blob(GCS_PATH + file_name)
-#         blob.upload_from_filename(source_files_path + file_name)
-#         print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
+#     if not bucket.exists():
+#         bucket.create(location='europe-north1')
+#         print(f"Bucket {bucket_name} created.")
+#     else:
+#         print(f"Bucket {bucket_name} already exists.")
 
-def replace_files_in_gcs(bucket_name, source_files_path, destination_blob_path):
-    """Deletes existing files in GCS and uploads new ones from the local filesystem."""
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
+# # def upload_files_to_gcs(bucket_name, source_files_path):
+# #     """Uploads files from local filesystem to GCS."""
+# #     client = storage.Client()
+# #     bucket = client.bucket(bucket_name)
+# #     files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
+# #     for file_name in files_to_upload:
+# #         blob = bucket.blob(GCS_PATH + file_name)
+# #         blob.upload_from_filename(source_files_path + file_name)
+# #         print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
+
+# def replace_files_in_gcs(bucket_name, source_files_path, destination_blob_path):
+#     """Deletes existing files in GCS and uploads new ones from the local filesystem."""
+#     client = storage.Client()
+#     bucket = client.bucket(bucket_name)
     
-    # List and delete existing files in the destination_blob_path
-    blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
-    for blob in blobs:
-        blob.delete()
-        print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
+#     # List and delete existing files in the destination_blob_path
+#     blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
+#     for blob in blobs:
+#         blob.delete()
+#         print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
     
-    # Upload new files from the local filesystem to GCS
-    files_to_upload = os.listdir(source_files_path)
-    for file_name in files_to_upload:
-        local_file_path = os.path.join(source_files_path, file_name)
-        if os.path.isfile(local_file_path):
-            try:
-                new_blob = bucket.blob(f"{destination_blob_path}{file_name}")
-                new_blob.upload_from_filename(local_file_path)
-                print(f"Uploaded {file_name} to GCS bucket {bucket_name} at {destination_blob_path}")
-            except Exception as e:
-                print(f"Failed to upload {file_name} to GCS. Error: {str(e)}")
+#     # Upload new files from the local filesystem to GCS
+#     files_to_upload = os.listdir(source_files_path)
+#     for file_name in files_to_upload:
+#         local_file_path = os.path.join(source_files_path, file_name)
+#         if os.path.isfile(local_file_path):
+#             try:
+#                 new_blob = bucket.blob(f"{destination_blob_path}{file_name}")
+#                 new_blob.upload_from_filename(local_file_path)
+#                 print(f"Uploaded {file_name} to GCS bucket {bucket_name} at {destination_blob_path}")
+#             except Exception as e:
+#                 print(f"Failed to upload {file_name} to GCS. Error: {str(e)}")
                 
 with DAG(
     'load_logs_to_bigquery',
@@ -75,23 +75,23 @@ with DAG(
     tags=['etl', 'load'],
 ) as dag:
     
-    # Task to check and create the GCS bucket if necessary
-    check_create_gcs_bucket = PythonOperator(
-        task_id='check_create_gcs_bucket',
-        python_callable=check_create_bucket,
-        op_kwargs={'bucket_name': BUCKET_NAME},
-    )
+    # # Task to check and create the GCS bucket if necessary
+    # check_create_gcs_bucket = PythonOperator(
+    #     task_id='check_create_gcs_bucket',
+    #     python_callable=check_create_bucket,
+    #     op_kwargs={'bucket_name': BUCKET_NAME},
+    # )
 
-    # Task to upload files to GCS, this assumes you have already created a list of file paths to upload
-    replace_files_in_gcs = PythonOperator(
-        task_id='upload_to_gcs',
-        python_callable= replace_files_in_gcs,
-        op_kwargs={
-            'bucket_name': BUCKET_NAME,
-            'source_files_path': '/opt/airflow/transformed/W3SVC1/',
-            'destination_blob_path': GCS_PATH,
-        },
-    )
+    # # Task to upload files to GCS, this assumes you have already created a list of file paths to upload
+    # replace_files_in_gcs = PythonOperator(
+    #     task_id='upload_to_gcs',
+    #     python_callable= replace_files_in_gcs,
+    #     op_kwargs={
+    #         'bucket_name': BUCKET_NAME,
+    #         'source_files_path': '/opt/airflow/transformed/W3SVC1/',
+    #         'destination_blob_path': GCS_PATH,
+    #     },
+    # )
     
     # Task to create an empty table in BigQuery if it doesn't exist
     create_table_task = BigQueryCreateEmptyTableOperator(
