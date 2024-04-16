@@ -19,7 +19,7 @@ default_args = {
 # Define the bucket name and GCS path for the transformed logs
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
-LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/'  # Replace with the path where transformed files are stored
+LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'  # Replace with the path where transformed files are stored
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
@@ -47,27 +47,17 @@ def upload_files_to_gcs(bucket_name, source_files_path):
     """Uploads files from local filesystem to GCS."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    
-    # List all files in the source files path
-    files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
-    print(f"Found {len(files_to_upload)} files to upload.")
-    
+    files_to_upload = os.listdir(source_files_path)
     for file_name in files_to_upload:
-        try:
-            # Construct the full local path
-            local_file_path = os.path.join(source_files_path, file_name)
-            
-            # Construct the full GCS path
-            gcs_file_path = os.path.join(GCS_PATH, file_name)
-            blob = bucket.blob(gcs_file_path)
-            
-            # Upload the file
-            blob.upload_from_filename(local_file_path)
-            print(f"Uploaded {file_name} to {gcs_file_path}.")
-        except Exception as e:
-            print(f"Failed to upload {file_name}. Error: {e}")
-
-
+        local_file_path = os.path.join(source_files_path, file_name)
+        if os.path.isfile(local_file_path):
+            try:
+                blob = bucket.blob(f"{GCS_PATH}{file_name}")
+                blob.upload_from_filename(local_file_path)
+                print(f"Uploaded {file_name} to GCS bucket {bucket_name} at {GCS_PATH}")
+            except Exception as e:
+                print(f"Failed to upload {file_name} to GCS. Error: {str(e)}")
+                
 with DAG(
     'load_logs_to_bigquery',
     default_args=default_args,
@@ -90,7 +80,7 @@ with DAG(
         python_callable=upload_files_to_gcs,
         op_kwargs={
             'bucket_name': BUCKET_NAME,
-            'source_files_path': '/opt/airflow/transformed/',
+            'source_files_path': '/opt/airflow/transformed/W3SVC1/',
         },
     )
     
