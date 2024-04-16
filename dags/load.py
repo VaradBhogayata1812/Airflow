@@ -33,15 +33,40 @@ def check_create_bucket(bucket_name):
     else:
         print(f"Bucket {bucket_name} already exists.")
 
+# def upload_files_to_gcs(bucket_name, source_files_path):
+#     """Uploads files from local filesystem to GCS."""
+#     client = storage.Client()
+#     bucket = client.bucket(bucket_name)
+#     files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
+#     for file_name in files_to_upload:
+#         blob = bucket.blob(GCS_PATH + file_name)
+#         blob.upload_from_filename(source_files_path + file_name)
+#         print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
+
 def upload_files_to_gcs(bucket_name, source_files_path):
     """Uploads files from local filesystem to GCS."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
+    
+    # List all files in the source files path
     files_to_upload = [f for f in os.listdir(source_files_path) if os.path.isfile(os.path.join(source_files_path, f))]
+    print(f"Found {len(files_to_upload)} files to upload.")
+    
     for file_name in files_to_upload:
-        blob = bucket.blob(GCS_PATH + file_name)
-        blob.upload_from_filename(source_files_path + file_name)
-        print(f"Uploaded {file_name} to {GCS_PATH + file_name}.")
+        try:
+            # Construct the full local path
+            local_file_path = os.path.join(source_files_path, file_name)
+            
+            # Construct the full GCS path
+            gcs_file_path = os.path.join(GCS_PATH, file_name)
+            blob = bucket.blob(gcs_file_path)
+            
+            # Upload the file
+            blob.upload_from_filename(local_file_path)
+            print(f"Uploaded {file_name} to {gcs_file_path}.")
+        except Exception as e:
+            print(f"Failed to upload {file_name}. Error: {e}")
+
 
 with DAG(
     'load_logs_to_bigquery',
