@@ -106,5 +106,4 @@ with DAG(
         },
     )
 
-    # Setting up task dependencies
     check_create_gcs_bucket >> transform_task >> upload_to_gcs_task
