@@ -1,9 +1,77 @@
+# from airflow import DAG
+# from airflow.utils.dates import days_ago
+# from datetime import timedelta
+# from airflow.operators.python import PythonOperator
+# from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator
+# from google.cloud import storage
+
+# default_args = {
+#     'owner': 'airflow',
+#     'start_date': days_ago(1),
+#     'email': ['varadbhogayata78@gmail.com'],
+#     'email_on_failure': True,
+#     'email_on_retry': True,
+#     'retries': 1,
+#     'retry_delay': timedelta(minutes=5),
+# }
+
+# BUCKET_NAME = 'transformedlogfiles'
+# GCS_PATH = 'transformed_logs/'
+# LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'
+# DATASET_NAME = 'loadeddata'
+# TABLE_NAME = 'loadedlogfiles'
+
+# with DAG(
+#     'load_logs_to_bigquery',
+#     default_args=default_args,
+#     description='A DAG to load log files to BigQuery',
+#     schedule_interval=timedelta(days=1),
+#     catchup=False,
+#     tags=['etl', 'load'],
+# ) as dag:
+    
+#     create_table_task = BigQueryCreateEmptyTableOperator(
+#         task_id='create_bigquery_table',
+#         dataset_id=DATASET_NAME,
+#         table_id=TABLE_NAME,
+#         exists_ok=True,
+#     )
+
+#     load_to_bq_task = BigQueryInsertJobOperator(
+#         task_id='load_to_bigquery',
+#         configuration={
+#             'load': {
+#                 'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.csv'],
+#                 'destinationTable': {
+#                     'projectId': 'etl-project-418923',
+#                     'datasetId': DATASET_NAME,
+#                     'tableId': TABLE_NAME,
+#                 },
+#                 'sourceFormat': 'CSV',
+#                 'writeDisposition': 'WRITE_APPEND',
+#                 'autodetect': True,
+#             },
+#         },
+#     )
+
+#     create_table_task >> load_to_bq_task
+
+
+
+
+
+
+
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator
-from google.cloud import storage
+from airflow.providers.google.cloud.operators.bigquery import (
+    BigQueryCheckOperator,
+    BigQueryDeleteTableOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryInsertJobOperator
+)
 
 default_args = {
     'owner': 'airflow',
@@ -17,7 +85,6 @@ default_args = {
 
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
-LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
@@ -30,6 +97,19 @@ with DAG(
     tags=['etl', 'load'],
 ) as dag:
     
+    check_table_exists_task = BigQueryCheckOperator(
+        task_id='check_table_exists',
+        sql=f'SELECT 1 FROM `{DATASET_NAME}.{TABLE_NAME}` LIMIT 1',
+        use_legacy_sql=False
+    )
+
+    delete_table_task = BigQueryDeleteTableOperator(
+        task_id='delete_table',
+        deletion_dataset_table=f'{DATASET_NAME}.{TABLE_NAME}',
+        ignore_if_missing=False,
+        trigger_rule="all_done"
+    )
+
     create_table_task = BigQueryCreateEmptyTableOperator(
         task_id='create_bigquery_table',
         dataset_id=DATASET_NAME,
@@ -48,10 +128,10 @@ with DAG(
                     'tableId': TABLE_NAME,
                 },
                 'sourceFormat': 'CSV',
-                'writeDisposition': 'WRITE_APPEND',
+                'writeDisposition': 'WRITE_TRUNCATE',
                 'autodetect': True,
             },
         },
     )
 
-    create_table_task >> load_to_bq_task
+    check_table_exists_task >> delete_table_task >> create_table_task >> load_to_bq_task
