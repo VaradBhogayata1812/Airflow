@@ -61,17 +61,11 @@
 
 
 
-
+from airflow.providers.google.cloud.sensors.bigquery import BigQueryTableExistenceSensor
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteTableOperator, BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCheckOperator,
-    BigQueryDeleteTableOperator,
-    BigQueryCreateEmptyTableOperator,
-    BigQueryInsertJobOperator
-)
 
 default_args = {
     'owner': 'airflow',
@@ -80,7 +74,7 @@ default_args = {
     'email_on_failure': True,
     'email_on_retry': True,
     'retries': 1,
-    'retry_delay': timedelta(minutes=2),
+    'retry_delay': timedelta(minutes=5),
 }
 
 BUCKET_NAME = 'transformedlogfiles'
@@ -96,28 +90,34 @@ with DAG(
     catchup=False,
     tags=['etl', 'load'],
 ) as dag:
-    
-    check_table_exists_task = BigQueryCheckOperator(
-        task_id='check_table_exists',
-        sql=f'SELECT 1 FROM `{DATASET_NAME}.{TABLE_NAME}` LIMIT 1',
-        use_legacy_sql=False
+
+    # Wait for the table to exist without failing
+    wait_for_table = BigQueryTableExistenceSensor(
+        task_id='wait_for_table',
+        project_id='etl-project-418923',
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        poke_interval=30,  # Check every 30 seconds
     )
 
-    delete_table_task = BigQueryDeleteTableOperator(
+    # Delete the table if it exists
+    delete_table = BigQueryDeleteTableOperator(
         task_id='delete_table',
         deletion_dataset_table=f'{DATASET_NAME}.{TABLE_NAME}',
-        ignore_if_missing=False,
-        trigger_rule="all_done"
+        ignore_if_missing=True,  # Do not fail if the table does not exist
+        trigger_rule="all_done",  # Ensure this runs regardless of previous task status
     )
 
-    create_table_task = BigQueryCreateEmptyTableOperator(
-        task_id='create_bigquery_table',
+    # Create the table
+    create_table = BigQueryCreateEmptyTableOperator(
+        task_id='create_table',
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
         exists_ok=True,
     )
 
-    load_to_bq_task = BigQueryInsertJobOperator(
+    # Load data into the table
+    load_to_bq = BigQueryInsertJobOperator(
         task_id='load_to_bigquery',
         configuration={
             'load': {
@@ -134,4 +134,4 @@ with DAG(
         },
     )
 
-    check_table_exists_task >> delete_table_task >> create_table_task >> load_to_bq_task
+    wait_for_table >> delete_table >> create_table >> load_to_bq
