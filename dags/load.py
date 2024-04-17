@@ -17,7 +17,7 @@ default_args = {
 
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
-LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'  # Adjust as necessary
+LOCAL_TRANSFORMED_PATH = '/opt/airflow/transformed/W3SVC1/'
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
@@ -34,7 +34,7 @@ with DAG(
         task_id='create_bigquery_table',
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        exists_ok=True,  # Set to True to not recreate if it exists
+        exists_ok=True,
     )
 
     load_to_bq_task = BigQueryInsertJobOperator(
@@ -49,7 +49,7 @@ with DAG(
                 },
                 'sourceFormat': 'CSV',
                 'writeDisposition': 'WRITE_APPEND',
-                'autodetect': True,  # Automatically detect schema from the CSV files
+                'autodetect': True,
             },
         },
     )
