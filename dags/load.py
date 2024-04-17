@@ -88,7 +88,7 @@ with DAG(
     description='A DAG to load log files to BigQuery',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['etl', 'load'],
+    tags=['load'],
 ) as dag:
 
     # Wait for the table to exist without failing
