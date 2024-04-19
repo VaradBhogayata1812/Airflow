@@ -118,8 +118,6 @@
 #     )
 
 #     create_table_task >> load_to_bq_task
-
-
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
@@ -172,19 +170,19 @@ with DAG(
                     'fields': [
                         {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
                         {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
-                        {'name': 's-ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs-method', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs-uri-stem', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs-uri-query', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 's-port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'cs-username', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'c-ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs(User-Agent)', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs(Referer)', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'sc-status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'sc-substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'sc-win32-status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'time-taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
+                        {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
                     ]
                 },
             },
