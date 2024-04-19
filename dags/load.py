@@ -120,7 +120,6 @@
 #     create_table_task >> load_to_bq_task
 
 
-
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
@@ -163,15 +162,33 @@ with DAG(
             'load': {
                 'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.csv'],
                 'destinationTable': {
-                    'projectId': 'etl-project-418923',
+                    'projectId': 'etl-project-418923',  # Ensure this is your actual project ID
                     'datasetId': DATASET_NAME,
                     'tableId': TABLE_NAME,
                 },
                 'sourceFormat': 'CSV',
                 'writeDisposition': 'WRITE_TRUNCATE',
-                'autodetect': True,
+                'schema': {
+                    'fields': [
+                        {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
+                        {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
+                        {'name': 's-ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs-method', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs-uri-stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs-uri-query', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 's-port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'cs-username', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'c-ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs(User-Agent)', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs(Referer)', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'sc-status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc-substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc-win32-status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'time-taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
+                    ]
+                },
             },
-        },
+        }
     )
 
     create_table_task >> load_to_bq_task
