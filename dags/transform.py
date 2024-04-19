@@ -175,35 +175,24 @@ def create_directory_if_not_exists(directory_path):
 def transform_log_file(file_path):
     print(f"Processing file: {file_path}")
     new_columns = [
-        'date', 'time', 's-ip', 'cs-method', 'cs-uri-stem', 'cs-uri-query',
-        's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'cs(Referer)',
-        'sc-status', 'sc-substatus', 'sc-win32-status', 'time-taken'
+        'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+        's_port', 'cs_username', 'c_ip', 'cs_user_agent', 'cs_referer',
+        'sc_status', 'sc_substatus', 'sc_win32_status', 'time_taken'
     ]
-
-    # Read the file as a plain text file
+    
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
-
-        # Split each line by tabs
         data = [line.split('\t') for line in lines]
-
-        # Create a DataFrame from the split data
         df = pd.DataFrame(data, columns=new_columns)
-
-        # Filter out any rows where the first column (expected to be 'date') starts with '#'
         df = df[~df['date'].astype(str).str.startswith('#')]
-
-        # Define the transformed file path and create the directory if it does not exist
         transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
         create_directory_if_not_exists(os.path.dirname(transformed_path))
 
-        # Save the transformed data to the new CSV file
         df.to_csv(transformed_path, index=False)
         print(f"Transformed data saved to {transformed_path}")
     except Exception as e:
         print(f"Failed to process file {file_path} due to: {e}")
-
 
 def transform_files_in_directory(directory_path):
     """
