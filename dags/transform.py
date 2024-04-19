@@ -120,7 +120,6 @@ from datetime import timedelta
 import os
 import pandas as pd
 from google.cloud import storage
-import json
 
 default_args = {
     'owner': 'airflow',
@@ -174,15 +173,24 @@ def create_directory_if_not_exists(directory_path):
         os.makedirs(directory_path, exist_ok=True)
 
 def transform_log_file(file_path):
-    columns = [
+    # Define new columns as requested
+    new_columns = [
         'date', 'time', 's-ip', 'cs-method', 'cs-uri-stem', 'cs-uri-query',
-        's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'cs(Referer)',
-        'sc-status', 'sc-substatus', 'sc-win32-status', 'time-taken'
+        's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'sc-status', 
+        'sc-substatus', 'sc-win32-status', 'time-taken'
     ]
-    df = pd.read_csv(file_path, delim_whitespace=True, names=columns, header=None)
-    df['is_crawler'] = df['cs-uri-stem'].apply(lambda x: 'Yes' if 'robots.txt' in str(x) else 'No')
-    transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
-    create_directory_if_not_exists(os.path.dirname(transformed_path))
+    
+    # Read the file, skip lines that start with '#', and split on tabs
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        data = [line for line in lines if not line.strip().startswith('#')]
+        data = [line.split('\t') for line in data]  # Splitting on tabs
+    
+    # Convert the data into a DataFrame
+    df = pd.DataFrame(data, columns=new_columns)
+    
+    # Save the transformed data to a new CSV file
+    transformed_path = file_path.replace('.log', '.csv')
     df.to_csv(transformed_path, index=False)
     print(f"Transformed data saved to {transformed_path}")
 
@@ -190,16 +198,6 @@ def transform_files_in_directory(directory_path):
     for filename in os.listdir(directory_path):
         if filename.endswith('.log'):
             transform_log_file(os.path.join(directory_path, filename))
-def transform_json_to_csv(json_file_path, csv_file_path):
-    with open(json_file_path, 'r') as jf:
-        data = json.load(jf)
-    
-    # Assuming that the data is a list of dictionaries
-    clean_data = [row for row in data if not str(row.get('date', '')).startswith('#')]
-    
-    df = pd.DataFrame(clean_data)
-    df.to_csv(csv_file_path, sep='\t', index=False)
-    print(f"Transformed JSON saved to {csv_file_path}")
 
 with DAG(
     'transform_logs',
@@ -210,25 +208,16 @@ with DAG(
     tags=['transform'],
 ) as dag:
     
-    check_create_gcs_bucket = PythonOperator(
-        task_id='check_create_gcs_bucket',
-        python_callable=check_create_bucket,
-        op_kwargs={'bucket_name': BUCKET_NAME},
-    )
-    
-    transform_json = PythonOperator(
-        task_id='transform_json_to_csv',
-        python_callable=transform_json_to_csv,
-        op_kwargs={
-            'json_file_path': '/opt/airflow/gcs/data/file.json',
-            'csv_file_path': '/opt/airflow/gcs/data/transformed_file.csv'
-        },
-    )
-
     transform_task = PythonOperator(
         task_id='transform_logs',
         python_callable=transform_files_in_directory,
         op_kwargs={'directory_path': '/opt/airflow/gcs/data/W3SVC1/'},
+    )
+
+    check_create_gcs_bucket = PythonOperator(
+        task_id='check_create_gcs_bucket',
+        python_callable=check_create_bucket,
+        op_kwargs={'bucket_name': BUCKET_NAME},
     )
 
     upload_to_gcs_task = PythonOperator(
@@ -241,4 +230,5 @@ with DAG(
         },
     )
 
-    check_create_gcs_bucket >> transform_json >> transform_task >> upload_to_gcs_task
+    check_create_gcs_bucket >> transform_task >> upload_to_gcs_task
+
