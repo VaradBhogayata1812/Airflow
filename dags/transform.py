@@ -173,31 +173,47 @@ def create_directory_if_not_exists(directory_path):
         os.makedirs(directory_path, exist_ok=True)
 
 def transform_log_file(file_path):
-    # Define new columns as requested
+    print(f"Processing file: {file_path}")
     new_columns = [
         'date', 'time', 's-ip', 'cs-method', 'cs-uri-stem', 'cs-uri-query',
-        's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'sc-status', 
-        'sc-substatus', 'sc-win32-status', 'time-taken'
+        's-port', 'cs-username', 'c-ip', 'cs(User-Agent)', 'cs(Referer)',
+        'sc-status', 'sc-substatus', 'sc-win32-status', 'time-taken'
     ]
-    
-    # Read the file, skip lines that start with '#', and split on tabs
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        data = [line for line in lines if not line.strip().startswith('#')]
-        data = [line.split('\t') for line in data]  # Splitting on tabs
-    
-    # Convert the data into a DataFrame
-    df = pd.DataFrame(data, columns=new_columns)
-    
-    # Save the transformed data to a new CSV file
-    transformed_path = file_path.replace('.log', '.csv')
-    df.to_csv(transformed_path, index=False)
-    print(f"Transformed data saved to {transformed_path}")
+
+    # Read the file as a plain text file
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        # Split each line by tabs
+        data = [line.split('\t') for line in lines]
+
+        # Create a DataFrame from the split data
+        df = pd.DataFrame(data, columns=new_columns)
+
+        # Filter out any rows where the first column (expected to be 'date') starts with '#'
+        df = df[~df['date'].astype(str).str.startswith('#')]
+
+        # Define the transformed file path and create the directory if it does not exist
+        transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
+        create_directory_if_not_exists(os.path.dirname(transformed_path))
+
+        # Save the transformed data to the new CSV file
+        df.to_csv(transformed_path, index=False)
+        print(f"Transformed data saved to {transformed_path}")
+    except Exception as e:
+        print(f"Failed to process file {file_path} due to: {e}")
+
 
 def transform_files_in_directory(directory_path):
+    """
+    Transforms all .log files in the specified directory to .csv files,
+    applying log file transformation logic to each.
+    """
     for filename in os.listdir(directory_path):
         if filename.endswith('.log'):
-            transform_log_file(os.path.join(directory_path, filename))
+            file_path = os.path.join(directory_path, filename)
+            transform_log_file(file_path)
 
 with DAG(
     'transform_logs',
@@ -231,4 +247,3 @@ with DAG(
     )
 
     check_create_gcs_bucket >> transform_task >> upload_to_gcs_task
-
