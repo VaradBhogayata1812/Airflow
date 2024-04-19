@@ -124,11 +124,7 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyTableOperator,
-    BigQueryInsertJobOperator
-)
-from google.cloud.bigquery import SchemaField
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator, BigQueryInsertJobOperator
 
 default_args = {
     'owner': 'airflow',
@@ -145,25 +141,6 @@ GCS_PATH = 'transformed_logs/'
 DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
-# Define the BigQuery table schema
-schema = [
-    SchemaField("date", "DATE"),
-    SchemaField("time", "TIME"),
-    SchemaField("s-ip", "STRING"),
-    SchemaField("cs-method", "STRING"),
-    SchemaField("cs-uri-stem", "STRING"),
-    SchemaField("cs-uri-query", "STRING"),
-    SchemaField("s-port", "INTEGER"),
-    SchemaField("cs-username", "STRING"),
-    SchemaField("c-ip", "STRING"),
-    SchemaField("cs(User-Agent)", "STRING"),
-    SchemaField("cs(Referer)", "STRING"),
-    SchemaField("sc-status", "INTEGER"),
-    SchemaField("sc-substatus", "INTEGER"),
-    SchemaField("sc-win32-status", "INTEGER"),
-    SchemaField("time-taken", "INTEGER"),
-]
-
 with DAG(
     'load_logs_to_bigquery',
     default_args=default_args,
@@ -177,8 +154,7 @@ with DAG(
         task_id='create_bigquery_table',
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        exists_ok=True,
-        schema_fields=schema,
+        exists_ok=True
     )
 
     load_to_bq_task = BigQueryInsertJobOperator(
@@ -193,9 +169,7 @@ with DAG(
                 },
                 'sourceFormat': 'CSV',
                 'writeDisposition': 'WRITE_TRUNCATE',
-                'schema': {
-                    'fields': schema
-                },
+                'autodetect': True,
             },
         },
     )
