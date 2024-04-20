@@ -172,6 +172,12 @@ def create_directory_if_not_exists(directory_path):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path, exist_ok=True)
 
+def clean_data(line):
+    # Example of removing the trailing comma and quotes
+    if line.endswith(',""'):
+        line = line[:-3]
+    return line
+
 def transform_log_file(file_path):
     print(f"Processing file: {file_path}")
     new_columns = [
@@ -179,20 +185,21 @@ def transform_log_file(file_path):
         's_port', 'cs_username', 'c_ip', 'cs_user_agent', 'cs_referer',
         'sc_status', 'sc_substatus', 'sc_win32_status', 'time_taken'
     ]
-    
+
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
-        data = [line.split('\t') for line in lines]
+        data = [clean_data(line).split('\t') for line in lines]
         df = pd.DataFrame(data, columns=new_columns)
         df = df[~df['date'].astype(str).str.startswith('#')]
         transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
         create_directory_if_not_exists(os.path.dirname(transformed_path))
 
-        df.to_csv(transformed_path, index=False)
+        df.to_csv(transformed_path, index=False, quoting=csv.QUOTE_ALL)
         print(f"Transformed data saved to {transformed_path}")
     except Exception as e:
         print(f"Failed to process file {file_path} due to: {e}")
+
 
 def transform_files_in_directory(directory_path):
     """
