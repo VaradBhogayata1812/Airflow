@@ -9,7 +9,7 @@ from google.cloud import storage
 default_args = {
     'owner': 'airflow',
     'start_date': days_ago(1),
-    'email': ['your-email@example.com'],
+    'email': ['varadbhogayata78@gmail.com'],
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -19,88 +19,92 @@ default_args = {
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
-def check_create_bucket(bucket_name):
-    """Checks if a GCS bucket exists and creates it if not."""
+def ensure_gcs_bucket_exists(bucket_name):
+    """Ensure a Google Cloud Storage bucket exists, create if it does not."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     if not bucket.exists():
         bucket.create(location='europe-north1')
-        print(f"Bucket {bucket_name} created.")
+        print(f"Created new bucket: {bucket_name}")
     else:
         print(f"Bucket {bucket_name} already exists.")
 
-def replace_files_in_gcs(bucket_name, source_files_path, destination_blob_path):
-    """Deletes existing files in GCS and uploads new ones."""
+def clean_and_upload_to_gcs(bucket_name, local_directory, gcs_directory):
+    """Clear GCS directory and upload new files from a local directory."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blobs = list(client.list_blobs(bucket, prefix=destination_blob_path))
+    blobs = list(client.list_blobs(bucket, prefix=gcs_directory))
     for blob in blobs:
         blob.delete()
-        print(f"Deleted {blob.name} from GCS bucket {bucket_name}")
+        print(f"Deleted {blob.name} from bucket {bucket_name}")
     
-    files_to_upload = [f for f in os.listdir(source_files_path) if f.endswith('.csv')]
-    print(f"Files to upload: {files_to_upload}")
+    files_to_upload = [f for f in os.listdir(local_directory) if f.endswith('.csv')]
     for file_name in files_to_upload:
-        blob = bucket.blob(os.path.join(destination_blob_path, file_name))
-        blob.upload_from_filename(os.path.join(source_files_path, file_name))
-        print(f"Uploaded {file_name} to GCS at {destination_blob_path}")
+        blob_path = os.path.join(gcs_directory, file_name)
+        blob = bucket.blob(blob_path)
+        blob.upload_from_filename(os.path.join(local_directory, file_name))
+        print(f"Uploaded {file_name} to GCS path {blob_path}")
 
-def create_directory_if_not_exists(directory_path):
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path, exist_ok=True)
+def prepare_output_directory(directory_path):
+    """Ensure the output directory exists for transformed files."""
+    os.makedirs(directory_path, exist_ok=True)
 
-def transform_log_files(directory_path):
-    create_directory_if_not_exists(directory_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/'))
-    for filename in os.listdir(directory_path):
+def process_and_transform_logs(input_directory):
+    """Read, transform, and save log files from the input directory."""
+    output_directory = input_directory.replace('/data/', '/transformed/')
+    prepare_output_directory(output_directory)
+    for filename in os.listdir(input_directory):
         if filename.endswith('.log'):
-            file_path = os.path.join(directory_path, filename)
-            try:
-                # Read the log file, skipping the first four lines which are headers/metadata
-                df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
-                # Check if dataframe has the expected number of columns
-                if df.shape[1] == 14:
-                    df.columns = [
-                        'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
-                        's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'sc_status',
-                        'sc_substatus', 'sc_win32_status', 'time_taken'
-                    ]
-                    transformed_path = file_path.replace('/opt/airflow/gcs/data/', '/opt/airflow/transformed/').replace('.log', '.csv')
-                    df.to_csv(transformed_path, index=False)
-                    print(f"Transformed data saved to {transformed_path}")
-                else:
-                    print(f"Skipped {file_path} due to column mismatch: expected 14, found {df.shape[1]}")
-            except Exception as e:
-                print(f"Failed to process {file_path}: {str(e)}")
+            process_log_file(input_directory, filename, output_directory)
+
+def process_log_file(input_directory, filename, output_directory):
+    file_path = os.path.join(input_directory, filename)
+    try:
+        df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
+        if df.shape[1] == 14:
+            df.columns = [
+                'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+                's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'sc_status',
+                'sc_substatus', 'sc_win32_status', 'time_taken'
+            ]
+            transformed_file = filename.replace('.log', '.csv')
+            transformed_path = os.path.join(output_directory, transformed_file)
+            df.to_csv(transformed_path, index=False)
+            print(f"Transformed and saved: {transformed_path}")
+        else:
+            print(f"Column mismatch in {filename}, expected 14 columns.")
+    except Exception as e:
+        print(f"Error processing {file_path}: {str(e)}")
 
 with DAG(
-    'transform_logs',
+    'log_file_transformation',
     default_args=default_args,
-    description='A DAG for transforming log files',
+    description='Transform log files and upload them to GCS',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['transform'],
+    tags=['log processing', 'GCS'],
 ) as dag:
     
-    check_create_gcs_bucket = PythonOperator(
-        task_id='check_create_gcs_bucket',
-        python_callable=check_create_bucket,
+    create_or_check_bucket = PythonOperator(
+        task_id='ensure_bucket_exists',
+        python_callable=ensure_gcs_bucket_exists,
         op_kwargs={'bucket_name': BUCKET_NAME},
     )
 
-    transform_task = PythonOperator(
-        task_id='transform_log_files',
-        python_callable=transform_log_files,
-        op_kwargs={'directory_path': '/opt/airflow/gcs/data/W3SVC1/'},
+    transform_logs = PythonOperator(
+        task_id='transform_logs',
+        python_callable=process_and_transform_logs,
+        op_kwargs={'input_directory': '/opt/airflow/gcs/data/W3SVC1/'},
     )
 
-    upload_to_gcs_task = PythonOperator(
-        task_id='upload_to_gcs',
-        python_callable=replace_files_in_gcs,
+    upload_transformed = PythonOperator(
+        task_id='upload_transformed_logs',
+        python_callable=clean_and_upload_to_gcs,
         op_kwargs={
             'bucket_name': BUCKET_NAME,
-            'source_files_path': '/opt/airflow/transformed/W3SVC1/',
-            'destination_blob_path': GCS_PATH,
+            'local_directory': '/opt/airflow/transformed/W3SVC1/',
+            'gcs_directory': GCS_PATH,
         },
     )
 
-    check_create_gcs_bucket >> transform_task >> upload_to_gcs_task
+    create_or_check_bucket >> transform_logs >> upload_transformed
