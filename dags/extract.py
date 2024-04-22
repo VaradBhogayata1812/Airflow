@@ -37,7 +37,7 @@ def download_files_from_gcs(bucket_name, source_blob_prefix, destination_directo
 
 # Ensure this is at the top level, not indented
 with DAG(
-    'extract_logs_gcs',
+    'extract',
     default_args=default_args,
     description='A DAG for extracting log files from GCS',
     schedule_interval=timedelta(days=1),
