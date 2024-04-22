@@ -56,24 +56,75 @@ def process_and_transform_logs(input_directory, output_directory):
         if filename.endswith('.log'):
             process_log_file(input_directory, filename, output_directory)
             
+# def process_log_file(input_directory, filename, output_directory):
+#     file_path = os.path.join(input_directory, filename)
+#     df = None
+    
+#     try:
+#         df = pd.read_csv(file_path, sep='\t', header=None)
+#         print(f"Columns found using tab separator: {df.shape[1]}")
+#     except Exception as tab_error:
+#         print(f"Error with tab separator: {tab_error}, trying with space separator")
+    
+#     if df is None or df.shape[1] not in [15, 19]:
+#         try:
+#             df = pd.read_csv(file_path, sep=" ", header=None)
+#             print(f"Columns found using space separator: {df.shape[1]}")
+#         except Exception as space_error:
+#             print(f"Failed to read {filename} with space separator as well. Error: {space_error}")
+#             return
+
+#     if df is not None:
+#         if df.shape[1] == 15:
+#             df.columns = [
+#                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+#                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
+#                 'sc_substatus', 'sc_win32_status', 'time_taken', 'extra_column'
+#             ]
+#         elif df.shape[1] == 19:
+#             df.columns = [
+#                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+#                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'cs(Cookie)', 'cs(Referer)',
+#                 'sc_status', 'sc_substatus', 'sc_win32_status', 'sc_bytes', 'cs_bytes',
+#                 'time_taken', 'extra_column'
+#             ]
+#         else:
+#             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
+#             return
+        
+#         transformed_file = filename.replace('.log', '.csv')
+#         transformed_path = os.path.join(output_directory, transformed_file)
+#         try:
+#             df.to_csv(transformed_path, sep='\t', index=False)
+#             print(f"Transformed and saved: {transformed_path}")
+#         except Exception as write_error:
+#             print(f"Error saving the transformed file: {write_error}")
+
 def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
     df = None
-    
-    try:
-        df = pd.read_csv(file_path, sep='\t', header=None)
-        print(f"Columns found using tab separator: {df.shape[1]}")
-    except Exception as tab_error:
-        print(f"Error with tab separator: {tab_error}, trying with space separator")
-    
-    if df is None or df.shape[1] not in [15, 19]:
-        try:
-            df = pd.read_csv(file_path, sep=" ", header=None)
-            print(f"Columns found using space separator: {df.shape[1]}")
-        except Exception as space_error:
-            print(f"Failed to read {filename} with space separator as well. Error: {space_error}")
-            return
 
+    # Helper function to filter and split lines based on delimiter
+    def filter_and_split_lines(file_path, delimiter):
+        try:
+            with open(file_path, 'r') as file:
+                lines = [line for line in file if not line.strip().startswith('#')]
+            return pd.DataFrame([line.strip().split(delimiter) for line in lines])
+        except Exception as e:
+            print(f"Error reading or parsing with {delimiter} delimiter: {e}")
+            return None
+
+    # Try reading with tab delimiter
+    df = filter_and_split_lines(file_path, '\t')
+    if df is not None and df.shape[1] in [15, 19]:
+        print(f"Columns found using tab separator: {df.shape[1]}")
+    else:
+        # Try reading with space delimiter if tab fails or column count is incorrect
+        df = filter_and_split_lines(file_path, ' ')
+        if df is not None:
+            print(f"Columns found using space separator: {df.shape[1]}")
+
+    # Check column count and assign headers accordingly
     if df is not None:
         if df.shape[1] == 15:
             df.columns = [
@@ -92,6 +143,7 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
         
+        # Save the transformed data to a CSV file
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
@@ -99,6 +151,7 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Transformed and saved: {transformed_path}")
         except Exception as write_error:
             print(f"Error saving the transformed file: {write_error}")
+
         
 with DAG(
     'transform',
