@@ -19,12 +19,12 @@ DATASET_NAME = 'loadeddata'
 TABLE_NAME = 'loadedlogfiles'
 
 with DAG(
-    'load_transformed_logs_to_bigquery',
+    'load',
     default_args=default_args,
     description='Load transformed log files into Google BigQuery.',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['bigquery', 'logs'],
+    tags=['load'],
 ) as dag:
 
     setup_bigquery_table = BigQueryCreateEmptyTableOperator(
