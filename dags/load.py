@@ -36,39 +36,42 @@ with DAG(
     )
 
     load_csv_to_bigquery = BigQueryInsertJobOperator(
-        task_id='load_csv_to_bq',
-        configuration={
-            'load': {
-                'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.csv'],
-                'destinationTable': {
-                    'projectId': 'etl-project-418923',
-                    'datasetId': DATASET_NAME,
-                    'tableId': TABLE_NAME,
-                },
-                'sourceFormat': 'CSV',
-                'writeDisposition': 'WRITE_TRUNCATE',
-                'schema': {
-                    'fields': [
-                        {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
-                        {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
-                        {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
-                        {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                        {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
-                    ]
-                },
+    task_id='load_csv_to_bq',
+    configuration={
+        'load': {
+            'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.csv'],
+            'destinationTable': {
+                'projectId': 'etl-project-418923',
+                'datasetId': DATASET_NAME,
+                'tableId': TABLE_NAME,
             },
-        },
-        dag=dag,
-    )
+            'sourceFormat': 'CSV',
+            'writeDisposition': 'WRITE_TRUNCATE',
+            'schema': {
+                'fields': [
+                    {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
+                    {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
+                    {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_cookie', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
+                ]
+            },
+        }
+    },
+    dag=dag,
+)
 
     setup_bigquery_table >> load_csv_to_bigquery
