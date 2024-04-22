@@ -61,14 +61,14 @@ def process_log_file(input_directory, filename, output_directory):
     df = None
     
     try:
-        df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
+        df = pd.read_csv(file_path, sep='\t', header=None)
         print(f"Columns found using tab separator: {df.shape[1]}")
     except Exception as tab_error:
         print(f"Error with tab separator: {tab_error}, trying with space separator")
     
     if df is None or df.shape[1] != 15:
         try:
-            df = pd.read_csv(file_path, sep=" ", header=None, skiprows=4)
+            df = pd.read_csv(file_path, sep=" ", header=None)
             print(f"Columns found using space separator: {df.shape[1]}")
         except Exception as space_error:
             print(f"Failed to read {filename} with space separator as well. Error: {space_error}")
