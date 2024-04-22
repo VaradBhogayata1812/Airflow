@@ -104,7 +104,6 @@ def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
     df = None
 
-    # Helper function to filter and split lines based on delimiter
     def filter_and_split_lines(file_path, delimiter):
         try:
             with open(file_path, 'r') as file:
@@ -114,36 +113,32 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Error reading or parsing with {delimiter} delimiter: {e}")
             return None
 
-    # Try reading with tab delimiter
     df = filter_and_split_lines(file_path, '\t')
-    if df is not None and df.shape[1] in [15, 19]:
+    if df is not None and df.shape[1] in [14, 18]:
         print(f"Columns found using tab separator: {df.shape[1]}")
     else:
-        # Try reading with space delimiter if tab fails or column count is incorrect
         df = filter_and_split_lines(file_path, ' ')
         if df is not None:
             print(f"Columns found using space separator: {df.shape[1]}")
 
-    # Check column count and assign headers accordingly
     if df is not None:
-        if df.shape[1] == 15:
+        if df.shape[1] == 14:
             df.columns = [
                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
-                'sc_substatus', 'sc_win32_status', 'time_taken', 'extra_column'
+                'sc_substatus', 'sc_win32_status', 'time_taken'
             ]
-        elif df.shape[1] == 19:
+        elif df.shape[1] == 18:
             df.columns = [
                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'cs(Cookie)', 'cs(Referer)',
                 'sc_status', 'sc_substatus', 'sc_win32_status', 'sc_bytes', 'cs_bytes',
-                'time_taken', 'extra_column'
+                'time_taken'
             ]
         else:
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
         
-        # Save the transformed data to a CSV file
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
