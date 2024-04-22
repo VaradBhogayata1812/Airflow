@@ -55,38 +55,41 @@ def process_and_transform_logs(input_directory, output_directory):
     for filename in os.listdir(input_directory):
         if filename.endswith('.log'):
             process_log_file(input_directory, filename, output_directory)
-            
+
 # def process_log_file(input_directory, filename, output_directory):
 #     file_path = os.path.join(input_directory, filename)
 #     df = None
-    
-#     try:
-#         df = pd.read_csv(file_path, sep='\t', header=None)
-#         print(f"Columns found using tab separator: {df.shape[1]}")
-#     except Exception as tab_error:
-#         print(f"Error with tab separator: {tab_error}, trying with space separator")
-    
-#     if df is None or df.shape[1] not in [15, 19]:
+
+#     def filter_and_split_lines(file_path, delimiter):
 #         try:
-#             df = pd.read_csv(file_path, sep=" ", header=None)
+#             with open(file_path, 'r') as file:
+#                 lines = [line for line in file if not line.strip().startswith('#')]
+#             return pd.DataFrame([line.strip().split(delimiter) for line in lines])
+#         except Exception as e:
+#             print(f"Error reading or parsing with {delimiter} delimiter: {e}")
+#             return None
+
+#     df = filter_and_split_lines(file_path, '\t')
+#     if df is not None and df.shape[1] in [14, 18]:
+#         print(f"Columns found using tab separator: {df.shape[1]}")
+#     else:
+#         df = filter_and_split_lines(file_path, ' ')
+#         if df is not None:
 #             print(f"Columns found using space separator: {df.shape[1]}")
-#         except Exception as space_error:
-#             print(f"Failed to read {filename} with space separator as well. Error: {space_error}")
-#             return
 
 #     if df is not None:
-#         if df.shape[1] == 15:
+#         if df.shape[1] == 14:
 #             df.columns = [
 #                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
 #                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
-#                 'sc_substatus', 'sc_win32_status', 'time_taken', 'extra_column'
+#                 'sc_substatus', 'sc_win32_status', 'time_taken'
 #             ]
-#         elif df.shape[1] == 19:
+#         elif df.shape[1] == 18:
 #             df.columns = [
 #                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
 #                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'cs(Cookie)', 'cs(Referer)',
 #                 'sc_status', 'sc_substatus', 'sc_win32_status', 'sc_bytes', 'cs_bytes',
-#                 'time_taken', 'extra_column'
+#                 'time_taken'
 #             ]
 #         else:
 #             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
@@ -122,23 +125,30 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Columns found using space separator: {df.shape[1]}")
 
     if df is not None:
+        # Standardizing to 18 columns
+        base_columns = [
+            'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+            's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'cs_Cookie', 'cs_Referer',
+            'sc_status', 'sc_substatus', 'sc_win32_status', 'sc_bytes', 'cs_bytes',
+            'time_taken'
+        ]
         if df.shape[1] == 14:
             df.columns = [
                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
-                's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
+                's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'sc_status',
                 'sc_substatus', 'sc_win32_status', 'time_taken'
             ]
+            # Insert missing columns with None values
+            insert_positions = [10, 11, 14, 15]  # Insert points for the 4 extra columns
+            missing_columns = ['cs_Cookie', 'cs_Referer', 'sc_bytes', 'cs_bytes']
+            for pos, col in zip(insert_positions, missing_columns):
+                df.insert(pos, col, None)
         elif df.shape[1] == 18:
-            df.columns = [
-                'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
-                's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'cs(Cookie)', 'cs(Referer)',
-                'sc_status', 'sc_substatus', 'sc_win32_status', 'sc_bytes', 'cs_bytes',
-                'time_taken'
-            ]
+            df.columns = base_columns
         else:
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
-        
+
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
@@ -146,7 +156,6 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Transformed and saved: {transformed_path}")
         except Exception as write_error:
             print(f"Error saving the transformed file: {write_error}")
-
         
 with DAG(
     'transform',
