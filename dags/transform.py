@@ -20,17 +20,15 @@ BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
 def ensure_gcs_bucket_exists(bucket_name):
-    """Ensure a Google Cloud Storage bucket exists, create if it does not."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     if not bucket.exists():
         bucket.create(location='europe-north1')
-        print(f"Created new bucket: {bucket_name}")
+        print(f"Created new bucket: {bucket_name} in europe-north1")
     else:
         print(f"Bucket {bucket_name} already exists.")
 
 def clean_and_upload_to_gcs(bucket_name, local_directory, gcs_directory):
-    """Clear GCS directory and upload new files from a local directory."""
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     blobs = list(client.list_blobs(bucket, prefix=gcs_directory))
@@ -38,20 +36,21 @@ def clean_and_upload_to_gcs(bucket_name, local_directory, gcs_directory):
         blob.delete()
         print(f"Deleted {blob.name} from bucket {bucket_name}")
     
-    files_to_upload = [f for f in os.listdir(local_directory) if f.endswith('.csv')]
-    for file_name in files_to_upload:
-        blob_path = os.path.join(gcs_directory, file_name)
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(os.path.join(local_directory, file_name))
-        print(f"Uploaded {file_name} to GCS path {blob_path}")
+    for file_name in os.listdir(local_directory):
+        if file_name.endswith('.csv'):
+            blob_path = os.path.join(gcs_directory, file_name)
+            blob = bucket.blob(blob_path)
+            blob.upload_from_filename(os.path.join(local_directory, file_name))
+            print(f"Uploaded {file_name} to GCS path {blob_path}")
 
 def prepare_output_directory(directory_path):
-    """Ensure the output directory exists for transformed files."""
-    os.makedirs(directory_path, exist_ok=True)
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path, exist_ok=True)
+        print(f"Created directory {directory_path}")
+    else:
+        print(f"Directory {directory_path} already exists.")
 
-def process_and_transform_logs(input_directory):
-    """Read, transform, and save log files from the input directory."""
-    output_directory = input_directory.replace('/data/', '/transformed/')
+def process_and_transform_logs(input_directory, output_directory):
     prepare_output_directory(output_directory)
     for filename in os.listdir(input_directory):
         if filename.endswith('.log'):
@@ -59,6 +58,9 @@ def process_and_transform_logs(input_directory):
 
 def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
+    output_file = os.path.join(output_directory, filename.replace('.log', '.csv'))
+    print(f"Processing {filename}...")
+
     try:
         df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
         if df.shape[1] == 15:
@@ -67,25 +69,12 @@ def process_log_file(input_directory, filename, output_directory):
                 's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
                 'sc_substatus', 'sc_win32_status', 'time_taken', 'varad'
             ]
-            
-            transformed_file = filename.replace('.log', '.csv')
-            transformed_path = os.path.join(output_directory, transformed_file)
-
-            try:
-                df.to_csv(transformed_path, sep='\t', index=False)
-                print(f"Transformed and saved using tab separator: {transformed_path}")
-            except Exception as tab_error:
-                print(f"Error with tab separator: {tab_error}, trying with space separator")
-                try:
-                    df.to_csv(transformed_path, sep=' ', index=False)
-                    print(f"Transformed and saved using space separator: {transformed_path}")
-                except Exception as space_error:
-                    print(f"Error with space separator: {space_error}")
+            df.to_csv(output_file, sep='\t', index=False)
+            print(f"Transformed and saved: {output_file}")
         else:
-            print(f"Column mismatch in {filename}, expected 15 columns before adding 'varad'.")
+            print(f"Column mismatch in {filename}, expected 15 columns, found {df.shape[1]}")
     except Exception as e:
-        print(f"Error processing {file_path}: {str(e)}")
-
+        print(f"Failed to process {filename}. Error: {e}")
 
 with DAG(
     'log_file_transformation',
@@ -95,7 +84,7 @@ with DAG(
     catchup=False,
     tags=['log processing', 'GCS'],
 ) as dag:
-    
+
     create_or_check_bucket = PythonOperator(
         task_id='ensure_bucket_exists',
         python_callable=ensure_gcs_bucket_exists,
@@ -105,7 +94,10 @@ with DAG(
     transform_logs = PythonOperator(
         task_id='transform_logs',
         python_callable=process_and_transform_logs,
-        op_kwargs={'input_directory': '/opt/airflow/gcs/data/W3SVC1/'},
+        op_kwargs={
+            'input_directory': '/opt/airflow/gcs/data/W3SVC1/',
+            'output_directory': '/opt/airflow/transformed/W3SVC1/',
+        },
     )
 
     upload_transformed = PythonOperator(
