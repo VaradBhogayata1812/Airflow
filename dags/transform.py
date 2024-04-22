@@ -61,20 +61,31 @@ def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
     try:
         df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
-        if df.shape[1] == 14:
+        if df.shape[1] == 15:
             df.columns = [
                 'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
-                's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'sc_status',
-                'sc_substatus', 'sc_win32_status', 'time_taken'
+                's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
+                'sc_substatus', 'sc_win32_status', 'time_taken', 'varad'
             ]
+            
             transformed_file = filename.replace('.log', '.csv')
             transformed_path = os.path.join(output_directory, transformed_file)
-            df.to_csv(transformed_path, index=False)
-            print(f"Transformed and saved: {transformed_path}")
+
+            try:
+                df.to_csv(transformed_path, sep='\t', index=False)
+                print(f"Transformed and saved using tab separator: {transformed_path}")
+            except Exception as tab_error:
+                print(f"Error with tab separator: {tab_error}, trying with space separator")
+                try:
+                    df.to_csv(transformed_path, sep=' ', index=False)
+                    print(f"Transformed and saved using space separator: {transformed_path}")
+                except Exception as space_error:
+                    print(f"Error with space separator: {space_error}")
         else:
-            print(f"Column mismatch in {filename}, expected 14 columns.")
+            print(f"Column mismatch in {filename}, expected 15 columns before adding 'varad'.")
     except Exception as e:
         print(f"Error processing {file_path}: {str(e)}")
+
 
 with DAG(
     'log_file_transformation',
