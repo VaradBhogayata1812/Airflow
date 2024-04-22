@@ -58,23 +58,36 @@ def process_and_transform_logs(input_directory, output_directory):
 
 def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
-    output_file = os.path.join(output_directory, filename.replace('.log', '.csv'))
     print(f"Processing {filename}...")
 
     try:
         df = pd.read_csv(file_path, sep='\t', header=None, skiprows=4)
-        if df.shape[1] == 15:
-            df.columns = [
-                'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
-                's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
-                'sc_substatus', 'sc_win32_status', 'time_taken', 'varad'
-            ]
-            df.to_csv(output_file, sep='\t', index=False)
-            print(f"Transformed and saved: {output_file}")
-        else:
-            print(f"Column mismatch in {filename}, expected 15 columns, found {df.shape[1]}")
-    except Exception as e:
-        print(f"Failed to process {filename}. Error: {e}")
+        print(f"Columns found using tab separator: {df.shape[1]}")
+    except Exception as tab_error:
+        print(f"Error with tab separator: {tab_error}, trying with space separator")
+        try:
+            df = pd.read_csv(file_path, sep=" ", header=None, skiprows=4)
+            print(f"Columns found using space separator: {df.shape[1]}")
+        except Exception as space_error:
+            print(f"Failed to read {filename} with space separator as well. Error: {space_error}")
+            return
+
+    if df.shape[1] == 15:
+        df.columns = [
+            'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
+            's_port', 'cs_username', 'c_ip', 'cs(User-Agent)', 'sc_status',
+            'sc_substatus', 'sc_win32_status', 'time_taken', 'varad'
+        ]
+        
+        transformed_file = filename.replace('.log', '.csv')
+        transformed_path = os.path.join(output_directory, transformed_file)
+        try:
+            df.to_csv(transformed_path, sep='\t', index=False)
+            print(f"Transformed and saved: {transformed_path}")
+        except Exception as write_error:
+            print(f"Error saving the transformed file: {write_error}")
+    else:
+        print(f"Column mismatch in {filename}, expected 15 columns, found {df.shape[1]}")
 
 with DAG(
     'log_file_transformation',
