@@ -92,12 +92,12 @@ def process_log_file(input_directory, filename, output_directory):
         print(f"Column mismatch in {filename}, expected 15 columns, found {df.shape[1]} if df is not None else 'unknown'")
         
 with DAG(
-    'log_file_transformation',
+    'transform',
     default_args=default_args,
     description='Transform log files and upload them to GCS',
     schedule_interval=timedelta(days=1),
     catchup=False,
-    tags=['log processing', 'GCS'],
+    tags=['transform'],
 ) as dag:
 
     create_or_check_bucket = PythonOperator(
