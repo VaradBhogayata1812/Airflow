@@ -152,7 +152,7 @@ def process_log_file(input_directory, filename, output_directory):
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
-            df.to_csv(transformed_path, sep='\t', index=False)
+            df.to_csv(transformed_path, sep=',', index=False)
             print(f"Transformed and saved: {transformed_path}")
         except Exception as write_error:
             print(f"Error saving the transformed file: {write_error}")
