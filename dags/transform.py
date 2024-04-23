@@ -53,7 +53,8 @@ def prepare_output_directory(directory_path):
 def transform_datetime(df):
     """Transforms date and time columns to BigQuery compatible formats."""
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
-    df['time'] = pd.to_datetime(df['time'], format='%H:%M:%S').dt.time().astype(str)
+    df['time'] = pd.to_datetime(df['time'], format='%H:%M:%S').dt.time
+    df['time'] = df['time'].astype(str)  # Ensure it's a string for consistent formatting
     return df
 
 def process_and_transform_logs(input_directory, output_directory):
