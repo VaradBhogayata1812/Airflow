@@ -56,6 +56,7 @@ with DAG(
                     {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
                     {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
                     {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
                     {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
                     {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
                     {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
