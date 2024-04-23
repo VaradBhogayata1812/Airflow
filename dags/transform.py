@@ -6,6 +6,7 @@ import os
 import pandas as pd
 from google.cloud import storage
 import requests
+from functools import lru_cache
 
 default_args = {
     'owner': 'airflow',
@@ -56,7 +57,8 @@ def is_crawler(df):
     crawler_ips = df[df['cs_uri_stem'] == '/robots.txt']['c_ip'].unique()
     df['is_crawler'] = df['c_ip'].isin(crawler_ips)
     return df
-    
+
+@lru_cache(maxsize=None)
 def fetch_geolocation(ip_address):
     api_key = 'bfe4fca3d6d843a3a65c903d70247b83'
     url = f"https://api.geoapify.com/v1/ipinfo?ip={ip_address}&apiKey={api_key}"
