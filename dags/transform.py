@@ -60,24 +60,23 @@ def is_crawler(df):
 
 @lru_cache(maxsize=None)
 def fetch_geolocation(ip_address):
-    api_key = 'bfe4fca3d6d843a3a65c903d70247b83'
-    url = f"https://api.geoapify.com/v1/ipinfo?ip={ip_address}&apiKey={api_key}"
+    token = '7a5b8d9f4da77e'  # Use your actual token
+    url = f"https://ipinfo.io/{ip_address}?token={token}"
     response = requests.get(url)
     data = response.json()
     
     geolocation_data = {
-        'city': data.get('city', {}).get('name', ''),
-        'continent': data.get('continent', {}).get('name', ''),
-        'country': data.get('country', {}).get('name', ''),
-        'state': data.get('state', {}).get('name', ''),
-        'latitude': data.get('location', {}).get('latitude', ''),
-        'longitude': data.get('location', {}).get('longitude', '')
+        'postal_code': data.get('postal', ''),
+        'city': data.get('city', ''),
+        'state': data.get('region', ''),
+        'country': data.get('country', '')
     }
     print(f"Geolocation data for IP {ip_address}: {geolocation_data}")
     return geolocation_data
 
 def add_geolocation(df):
-    df['geolocation_data'] = df['c_ip'].apply(fetch_geolocation)
+    geolocation_series = df['c_ip'].apply(fetch_geolocation)
+    df = pd.concat([df, geolocation_series.apply(pd.Series)], axis=1)
     return df
 
 def transform_datetime(df):
