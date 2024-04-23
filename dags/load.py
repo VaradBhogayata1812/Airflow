@@ -47,6 +47,8 @@ with DAG(
             },
             'sourceFormat': 'CSV',
             'writeDisposition': 'WRITE_TRUNCATE',
+            'fieldDelimiter': ',',
+            'skipLeadingRows': 1,
             'schema': {
                 'fields': [
                     {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
