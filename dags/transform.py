@@ -58,14 +58,24 @@ def is_crawler(df):
     return df
     
 def fetch_geolocation(ip_address):
-    api_key = 'your_api_key_here'
-    url = f"https://api.ip2location.com/v2/?ip={ip_address}&key={api_key}&format=json"
+    api_key = 'bfe4fca3d6d843a3a65c903d70247b83'
+    url = f"https://api.geoapify.com/v1/ipinfo?ip={ip_address}&apiKey={api_key}"
     response = requests.get(url)
     data = response.json()
-    return data
+    
+    geolocation_data = {
+        'city': data.get('city', {}).get('name', ''),
+        'continent': data.get('continent', {}).get('name', ''),
+        'country': data.get('country', {}).get('name', ''),
+        'state': data.get('state', {}).get('name', ''),
+        'latitude': data.get('location', {}).get('latitude', ''),
+        'longitude': data.get('location', {}).get('longitude', '')
+    }
+    print(f"Geolocation data for IP {ip_address}: {geolocation_data}")
+    return geolocation_data
 
 def add_geolocation(df):
-    df['geolocation'] = df['c_ip'].apply(fetch_geolocation)
+    df['geolocation_data'] = df['c_ip'].apply(fetch_geolocation)
     return df
 
 def transform_datetime(df):
