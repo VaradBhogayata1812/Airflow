@@ -68,8 +68,8 @@ with DAG(
                     {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
                     {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
                     {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'}
-                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
+                    {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
                 ]
             },
         }
