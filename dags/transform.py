@@ -5,6 +5,7 @@ from datetime import timedelta
 import os
 import pandas as pd
 from google.cloud import storage
+import requests
 
 default_args = {
     'owner': 'airflow',
@@ -54,6 +55,17 @@ def is_crawler(df):
     """Identifies crawler IPs based on access to 'robots.txt'."""
     crawler_ips = df[df['cs_uri_stem'] == '/robots.txt']['c_ip'].unique()
     df['is_crawler'] = df['c_ip'].isin(crawler_ips)
+    return df
+    
+def fetch_geolocation(ip_address):
+    api_key = 'your_api_key_here'
+    url = f"https://api.ip2location.com/v2/?ip={ip_address}&key={api_key}&format=json"
+    response = requests.get(url)
+    data = response.json()
+    return data
+
+def add_geolocation(df):
+    df['geolocation'] = df['c_ip'].apply(fetch_geolocation)
     return df
 
 def transform_datetime(df):
@@ -116,6 +128,7 @@ def process_log_file(input_directory, filename, output_directory):
             return
 
         df = is_crawler(df)
+        df = add_geolocation(df)
         df = transform_datetime(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
