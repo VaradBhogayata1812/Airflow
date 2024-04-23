@@ -50,6 +50,12 @@ def prepare_output_directory(directory_path):
     else:
         print(f"Directory {directory_path} already exists.")
 
+def is_crawler(df):
+    """Identifies crawler IPs based on access to 'robots.txt'."""
+    crawler_ips = df[df['cs_uri_stem'] == '/robots.txt']['c_ip'].unique()
+    df['is_crawler'] = df['c_ip'].isin(crawler_ips)
+    return df
+
 def transform_datetime(df):
     """Transforms date and time columns to BigQuery compatible formats."""
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
@@ -109,9 +115,8 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
 
-        # Apply datetime transformations
+        df = is_crawler(df)
         df = transform_datetime(df)
-
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
