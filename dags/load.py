@@ -69,7 +69,11 @@ with DAG(
                     {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
                     {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
                     {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
+                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
+                    {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'}
                 ]
             },
         }
