@@ -46,6 +46,39 @@ schema_fields = [
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
+def extract_os(user_agent):
+    if "Windows NT" in user_agent or "Windows" in user_agent:
+        return "Windows"
+    elif "Mac OS X" in user_agent or "Macintosh" in user_agent:
+        return "Macintosh"
+    elif "Linux" in user_agent:
+        return "Linux"
+    elif "compatible; Googlebot" in user_agent:
+        return "Known robots"
+    else:
+        return "Other"
+
+def extract_browser(user_agent):
+    if "Edge" in user_agent:
+        return "Edge"
+    elif "MSIE" in user_agent or "Trident" in user_agent:
+        return "Internet Explorer"
+    elif "Firefox" in user_agent:
+        return "Firefox"
+    elif "Chrome" in user_agent and "Edge" not in user_agent:
+        return "Chrome"
+    elif "Safari" in user_agent and "Chrome" not in user_agent:
+        return "Safari"
+    elif "OPR" in user_agent or "Opera" in user_agent:
+        return "Opera"
+    else:
+        return "Other"
+
+def extract_extension(uri_stem):
+    last_period_index = uri_stem.rfind('.')
+    return uri_stem[last_period_index+1:] if last_period_index != -1 else ""
+
+
 def load_file_directly_to_bigquery(file_path, table_id):
     client = bigquery.Client()
     dataset_ref = client.dataset('your_dataset_name')
@@ -178,6 +211,11 @@ def process_log_file(input_directory, filename, output_directory):
         df = is_crawler(df)
         # df = add_geolocation(df)
         df = transform_datetime(df)
+        # Calculations
+        df['TotalBytes'] = df['cs_bytes'].fillna(0).astype(int) + df['sc_bytes'].fillna(0).astype(int)
+        df['OS'] = df['cs_User_Agent'].apply(extract_os)
+        df['Browser'] = df['cs_User_Agent'].apply(extract_browser)
+        df['Extension'] = df['cs_uri_stem'].apply(extract_extension)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
