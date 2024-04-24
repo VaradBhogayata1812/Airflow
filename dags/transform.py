@@ -210,7 +210,7 @@ with DAG(
         write_disposition='WRITE_APPEND',
         skip_leading_rows=1,
         source_format='CSV',
-        schema_update_options=['ALLOW_FIELD_ADDITION'],
+        schema_update_options=['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'],
         dag=dag,
     )
 
