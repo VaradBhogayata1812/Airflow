@@ -74,6 +74,10 @@ with DAG(
                     {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
                     {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
                     {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'}
+                    {'name': 'Total_Bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                    {'name': 'OS', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'Browser', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'Extension', 'type': 'STRING', 'mode': 'NULLABLE'}
                 ]
             },
         }
