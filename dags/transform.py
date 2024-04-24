@@ -104,9 +104,9 @@ def fetch_geolocation(ip_address):
     
     geolocation_data = {
         'postal_code': data.get('postal', ''),
-        'city': data.get('city', ''),
-        'state': data.get('region', ''),
-        'country': data.get('country', '')
+        'geo_city': data.get('city', ''),
+        'geo_state': data.get('region', ''),
+        'geo_country': data.get('country', '')
     }
     print(f"Geolocation data for IP {ip_address}: {geolocation_data}")
     return geolocation_data
