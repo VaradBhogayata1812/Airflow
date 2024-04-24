@@ -7,6 +7,8 @@ import pandas as pd
 from google.cloud import storage
 import requests
 from functools import lru_cache
+from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator
 
 default_args = {
     'owner': 'airflow',
@@ -17,6 +19,28 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
+
+schema_fields = [
+    {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
+    {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
+    {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_cookie', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
+]
 
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
@@ -137,7 +161,7 @@ def process_log_file(input_directory, filename, output_directory):
             return
 
         df = is_crawler(df)
-        df = add_geolocation(df)
+        # df = add_geolocation(df)
         df = transform_datetime(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
@@ -155,6 +179,27 @@ with DAG(
     catchup=False,
     tags=['transform'],
 ) as dag:
+
+    create_bq_table = BigQueryCreateEmptyTableOperator(
+        task_id='create_bigquery_table',
+        dataset_id='loadeddata',
+        table_id='stagingtable',
+        schema_fields=schema_fields,
+        exists_ok=True,
+        dag=dag,
+    )
+    
+    load_csv_to_bq = GCSToBigQueryOperator(
+        task_id='load_csv_to_bigquery',
+        bucket=BUCKET_NAME,
+        source_objects=['transformed_logs/*.csv'],
+        destination_project_dataset_table='etl-project-418923.loadeddata.stagingtable',
+        schema_fields=schema_fields,
+        write_disposition='WRITE_APPEND',
+        skip_leading_rows=1,
+        source_format='CSV',
+        dag=dag,
+    )
 
     create_or_check_bucket = PythonOperator(
         task_id='ensure_bucket_exists',
@@ -181,4 +226,6 @@ with DAG(
         },
     )
 
-    create_or_check_bucket >> transform_logs >> upload_transformed
+    
+
+    create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq
