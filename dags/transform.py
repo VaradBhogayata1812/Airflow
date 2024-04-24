@@ -46,39 +46,6 @@ schema_fields = [
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
-def extract_os(user_agent):
-    if "Windows NT" in user_agent or "Windows" in user_agent:
-        return "Windows"
-    elif "Mac OS X" in user_agent or "Macintosh" in user_agent:
-        return "Macintosh"
-    elif "Linux" in user_agent:
-        return "Linux"
-    elif "compatible; Googlebot" in user_agent:
-        return "Known robots"
-    else:
-        return "Other"
-
-def extract_browser(user_agent):
-    if "Edge" in user_agent:
-        return "Edge"
-    elif "MSIE" in user_agent or "Trident" in user_agent:
-        return "Internet Explorer"
-    elif "Firefox" in user_agent:
-        return "Firefox"
-    elif "Chrome" in user_agent and "Edge" not in user_agent:
-        return "Chrome"
-    elif "Safari" in user_agent and "Chrome" not in user_agent:
-        return "Safari"
-    elif "OPR" in user_agent or "Opera" in user_agent:
-        return "Opera"
-    else:
-        return "Other"
-
-def extract_extension(uri_stem):
-    last_period_index = uri_stem.rfind('.')
-    return uri_stem[last_period_index+1:] if last_period_index != -1 else ""
-
-
 def load_file_directly_to_bigquery(file_path, table_id):
     client = bigquery.Client()
     dataset_ref = client.dataset('your_dataset_name')
@@ -211,11 +178,6 @@ def process_log_file(input_directory, filename, output_directory):
         df = is_crawler(df)
         # df = add_geolocation(df)
         df = transform_datetime(df)
-        # Calculations
-        df['TotalBytes'] = df['cs_bytes'].fillna(0).astype(int) + df['sc_bytes'].fillna(0).astype(int)
-        df['OS'] = df['cs_User_Agent'].apply(extract_os)
-        df['Browser'] = df['cs_User_Agent'].apply(extract_browser)
-        df['Extension'] = df['cs_uri_stem'].apply(extract_extension)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
@@ -254,6 +216,37 @@ with DAG(
         dag=dag,
     )
 
+    transform_data_in_bq = BigQueryExecuteQueryOperator(
+        task_id='transform_data_in_bigquery',
+        sql="""
+            CREATE OR REPLACE TABLE etl-project-418923.loadeddata.processedtable AS
+            SELECT
+                *,
+                (IFNULL(cs_bytes, 0) + IFNULL(sc_bytes, 0)) AS TotalBytes,
+                CASE
+                    WHEN cs_User_Agent LIKE '%Windows NT%' OR cs_User_Agent LIKE '%Windows%' THEN 'Windows'
+                    WHEN cs_User_Agent LIKE '%Mac OS X%' OR cs_User_Agent LIKE '%Macintosh%' THEN 'Macintosh'
+                    WHEN cs_User_Agent LIKE '%Linux%' THEN 'Linux'
+                    WHEN cs_User_Agent LIKE '%Googlebot%' THEN 'Known robots'
+                    ELSE 'Other'
+                END AS OS,
+                CASE
+                    WHEN cs_User_Agent LIKE '%Edge%' AND NOT cs_User_Agent LIKE '%Chrome%' THEN 'Edge'
+                    WHEN cs_User_Agent LIKE '%MSIE%' OR cs_User_Agent LIKE '%Trident%' THEN 'Internet Explorer'
+                    WHEN cs_User_Agent LIKE '%Firefox%' THEN 'Firefox'
+                    WHEN cs_User_Agent LIKE '%Chrome%' THEN 'Chrome'
+                    WHEN cs_User_Agent LIKE '%Safari%' AND NOT cs_User_Agent LIKE '%Chrome%' THEN 'Safari'
+                    WHEN cs_User_Agent LIKE '%OPR%' OR cs_User_Agent LIKE '%Opera%' THEN 'Opera'
+                    ELSE 'Other'
+                END AS Browser,
+                SUBSTR(cs_uri_stem, STRPOS(cs_uri_stem, '.') + 1) AS Extension
+            FROM
+                etl-project-418923.loadeddata.stagingtable
+        """,
+        use_legacy_sql=False,
+    )
+
+
     create_or_check_bucket = PythonOperator(
         task_id='ensure_bucket_exists',
         python_callable=ensure_gcs_bucket_exists,
@@ -279,7 +272,4 @@ with DAG(
         },
     )
 
-    
-
-    create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq
-
+    create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq >> transform_data_in_bq
