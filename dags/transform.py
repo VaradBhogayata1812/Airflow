@@ -60,7 +60,7 @@ def is_crawler(df):
 
 @lru_cache(maxsize=None)
 def fetch_geolocation(ip_address):
-    token = '7a5b8d9f4da77e'  # Use your actual token
+    token = '7a5b8d9f4da77e'
     url = f"https://ipinfo.io/{ip_address}?token={token}"
     response = requests.get(url)
     data = response.json()
@@ -83,7 +83,7 @@ def transform_datetime(df):
     """Transforms date and time columns to BigQuery compatible formats."""
     df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
     df['time'] = pd.to_datetime(df['time'], format='%H:%M:%S').dt.time
-    df['time'] = df['time'].astype(str)  # Ensure it's a string for consistent formatting
+    df['time'] = df['time'].astype(str)
     return df
 
 def process_and_transform_logs(input_directory, output_directory):
@@ -114,7 +114,6 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Columns found using space separator: {df.shape[1]}")
 
     if df is not None:
-        # Standardizing to 18 columns
         base_columns = [
             'date', 'time', 's_ip', 'cs_method', 'cs_uri_stem', 'cs_uri_query',
             's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'cs_Cookie', 'cs_Referer',
@@ -127,8 +126,7 @@ def process_log_file(input_directory, filename, output_directory):
                 's_port', 'cs_username', 'c_ip', 'cs_User_Agent', 'sc_status',
                 'sc_substatus', 'sc_win32_status', 'time_taken'
             ]
-            # Insert missing columns with None values
-            insert_positions = [10, 11, 14, 15]  # Insert points for the 4 extra columns
+            insert_positions = [10, 11, 14, 15]
             missing_columns = ['cs_Cookie', 'cs_Referer', 'sc_bytes', 'cs_bytes']
             for pos, col in zip(insert_positions, missing_columns):
                 df.insert(pos, col, None)
