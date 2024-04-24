@@ -46,7 +46,7 @@ schema_fields = [
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
-def load_file_directly_to_bigquery(file_path, dataset_id, table_id):
+def load_file_directly_to_bigquery(file_paths, dataset_id, table_id):
     client = bigquery.Client()
     table_ref = client.dataset(dataset_id).table(table_id)
     job_config = bigquery.LoadJobConfig()
@@ -54,9 +54,16 @@ def load_file_directly_to_bigquery(file_path, dataset_id, table_id):
     job_config.autodetect = True
     job_config.schema = schema_fields
 
-    with open(file_path, "rb") as source_file:
-        job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
-    job.result()
+    if not isinstance(file_paths, list):
+        file_paths = [file_paths]
+
+    for file_path in file_paths:
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as source_file:
+                job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
+                job.result()
+        else:
+            raise FileNotFoundError(f"No such file or directory: '{file_path}'")
 
 
 # def ensure_gcs_bucket_exists(bucket_name):
@@ -125,12 +132,15 @@ def transform_datetime(df):
     return df
 
 def process_and_transform_logs(input_directory, output_directory):
-    prepare_output_directory(output_directory)
+    files_paths = []
     for filename in os.listdir(input_directory):
         if filename.endswith('.log'):
-            processed_file_path = process_log_file(input_directory, filename, output_directory)
-            if processed_file_path:
-                return processed_file_path
+            file_path = process_log_file(input_directory, filename, output_directory)
+            if file_path:
+                files_paths.append(file_path)
+    if files_paths:
+        return files_paths
+
 
 def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
@@ -183,8 +193,8 @@ def process_log_file(input_directory, filename, output_directory):
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
             df.to_csv(transformed_path, sep=',', index=False)
-            print(f"Transformed and saved: {transformed_path}")
-            return transformed_path #Here
+            print(f"File processed and saved at: {transformed_path}")
+            return transformed_path
         except Exception as write_error:
             print(f"Error saving the transformed file: {write_error}")
 
@@ -210,11 +220,12 @@ with DAG(
         task_id='load_to_bigquery',
         python_callable=load_file_directly_to_bigquery,
         op_kwargs={
-            'file_path': '{{ task_instance.xcom_pull(task_ids="transform_logs") }}',
+            'file_paths': '{{ task_instance.xcom_pull(task_ids="transform_logs") }}',
             'dataset_id': 'loadeddata',
             'table_id': 'stagingtable'
         },
     )
+
 
 
     # create_or_check_bucket = PythonOperator(
