@@ -86,27 +86,6 @@ def transform_datetime(df):
     df['time'] = df['time'].astype(str)
     return df
 
-def compute_additional_fields(df):
-    df['Total_Bytes'] = df['cs_bytes'].fillna(0) + df['sc_bytes'].fillna(0)
-    
-    df['OS'] = df['cs_user_agent'].apply(lambda x: 'Windows' if 'Windows' in x else
-                                                     'Macintosh' if 'Mac OS X' in x or 'Macintosh' in x else
-                                                     'Linux' if 'Linux' in x else
-                                                     'Known robots' if 'Googlebot' in x else
-                                                     'Other')
-    
-    df['Browser'] = df['cs_user_agent'].apply(lambda x: 'Edge' if 'Edge' in x and 'Chrome' not in x else
-                                                          'Internet Explorer' if 'MSIE' in x or 'Trident' in x else
-                                                          'Firefox' if 'Firefox' in x else
-                                                          'Chrome' if 'Chrome' in x and 'Edge' not in x and 'OPR' not in x else
-                                                          'Safari' if 'Safari' in x and 'Chrome' not in x else
-                                                          'Opera' if 'OPR' in x or 'Opera' in x else
-                                                          'Other')
-    
-    df['Extension'] = df['cs_uri_stem'].apply(lambda x: x.split('.')[-1] if '.' in x else None)
-
-    return df
-
 def process_and_transform_logs(input_directory, output_directory):
     prepare_output_directory(output_directory)
     for filename in os.listdir(input_directory):
@@ -160,7 +139,6 @@ def process_log_file(input_directory, filename, output_directory):
         df = is_crawler(df)
         df = add_geolocation(df)
         df = transform_datetime(df)
-        df = compute_additional_fields(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
