@@ -128,7 +128,9 @@ def process_and_transform_logs(input_directory, output_directory):
     prepare_output_directory(output_directory)
     for filename in os.listdir(input_directory):
         if filename.endswith('.log'):
-            process_log_file(input_directory, filename, output_directory)
+            processed_file_path = process_log_file(input_directory, filename, output_directory)
+            if processed_file_path:
+                return processed_file_path
 
 def process_log_file(input_directory, filename, output_directory):
     file_path = os.path.join(input_directory, filename)
@@ -182,6 +184,7 @@ def process_log_file(input_directory, filename, output_directory):
         try:
             df.to_csv(transformed_path, sep=',', index=False)
             print(f"Transformed and saved: {transformed_path}")
+            return transformed_path #Here
         except Exception as write_error:
             print(f"Error saving the transformed file: {write_error}")
 
@@ -212,6 +215,7 @@ with DAG(
             'table_id': 'stagingtable'
         },
     )
+
 
     # create_or_check_bucket = PythonOperator(
     #     task_id='ensure_bucket_exists',
