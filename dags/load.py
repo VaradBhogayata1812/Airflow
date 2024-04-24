@@ -13,72 +13,78 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-BUCKET_NAME = 'transformedlogfiles'
-GCS_PATH = 'transformed_logs/'
 DATASET_NAME = 'loadeddata'
-TABLE_NAME = 'loadedlogfiles'
+STAGING_TABLE_NAME = 'processedtable'
+FINAL_TABLE_NAME = 'loadedlogfiles'
 
 with DAG(
     'load',
     default_args=default_args,
-    description='Load transformed log files into Google BigQuery.',
+    description='Transfer data from staging to final table in BigQuery.',
     schedule_interval=timedelta(days=1),
     catchup=False,
     tags=['load'],
 ) as dag:
 
-    setup_bigquery_table = BigQueryCreateEmptyTableOperator(
-        task_id='setup_bq_table',
+    setup_final_table = BigQueryCreateEmptyTableOperator(
+        task_id='setup_final_table',
         dataset_id=DATASET_NAME,
-        table_id=TABLE_NAME,
+        table_id=FINAL_TABLE_NAME,
         exists_ok=True,
         dag=dag,
     )
 
-    load_csv_to_bigquery = BigQueryInsertJobOperator(
-    task_id='load_csv_to_bq',
-    configuration={
-        'load': {
-            'sourceUris': [f'gs://{BUCKET_NAME}/{GCS_PATH}*.csv'],
-            'destinationTable': {
-                'projectId': 'etl-project-418923',
-                'datasetId': DATASET_NAME,
-                'tableId': TABLE_NAME,
-            },
-            'sourceFormat': 'CSV',
-            'writeDisposition': 'WRITE_TRUNCATE',
-            'fieldDelimiter': ',',
-            'skipLeadingRows': 1,
-            'schema': {
-                'fields': [
-                    {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
-                    {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
-                    {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_cookie', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-                    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
-                    {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
-                    {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'}
-                ]
-            },
-        }
-    },
-    dag=dag,
-)
+    transfer_data_to_final_table = BigQueryInsertJobOperator(
+        task_id='transfer_data_to_final_table',
+        configuration={
+            'query': {
+                'query': f'''
+                SELECT *
+                FROM `{DATASET_NAME}.{STAGING_TABLE_NAME}`
+                ''',
+                'destinationTable': {
+                    'projectId': 'etl-project-418923',
+                    'datasetId': DATASET_NAME,
+                    'tableId': FINAL_TABLE_NAME,
+                },
+                'sourceFormat': 'CSV',
+                'writeDisposition': 'WRITE_TRUNCATE',
+                'fieldDelimiter': ',',
+                'skipLeadingRows': 1,
+                'schema': {
+                    'fields': [
+                        {'name': 'date', 'type': 'DATE', 'mode': 'NULLABLE'},
+                        {'name': 'time', 'type': 'TIME', 'mode': 'NULLABLE'},
+                        {'name': 's_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_method', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_uri_stem', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_uri_query', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 's_port', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'cs_username', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'c_ip', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_user_agent', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_cookie', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'cs_referer', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'sc_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc_substatus', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc_win32_status', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'TotalBytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                        {'name': 'OS', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'Browser', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'Extension', 'type': 'STRING', 'mode': 'NULLABLE'},
+                        {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
+                    ]
+                },
+            }
+        },
+        dag=dag,
+    )
 
-    setup_bigquery_table >> load_csv_to_bigquery
+    setup_final_table >> transfer_data_to_final_table
