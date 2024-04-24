@@ -9,6 +9,7 @@ import requests
 from functools import lru_cache
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator
+from google.cloud import bigquery
 
 default_args = {
     'owner': 'airflow',
@@ -44,6 +45,19 @@ schema_fields = [
 
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
+
+def load_file_directly_to_bigquery(file_path, dataset_id, table_id):
+    client = bigquery.Client()
+    table_ref = client.dataset(dataset_id).table(table_id)
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.CSV
+    job_config.autodetect = True
+    job_config.schema = schema_fields
+
+    with open(file_path, "rb") as source_file:
+        job = client.load_table_from_file(source_file, table_ref, job_config=job_config)
+    job.result()
+
 
 # def ensure_gcs_bucket_exists(bucket_name):
 #     client = storage.Client()
@@ -189,16 +203,14 @@ with DAG(
         dag=dag,
     )
     
-    load_csv_to_bq = GCSToBigQueryOperator(
-        task_id='load_csv_to_bigquery',
-        bucket=BUCKET_NAME,
-        source_objects=['transformed_logs/*.csv'],
-        destination_project_dataset_table='etl-project-418923.loadeddata.stagingtable',
-        schema_fields=schema_fields,
-        write_disposition='WRITE_APPEND',
-        skip_leading_rows=1,
-        source_format='CSV',
-        dag=dag,
+    load_to_bq = PythonOperator(
+        task_id='load_to_bigquery',
+        python_callable=load_file_directly_to_bigquery,
+        op_kwargs={
+            'file_path': '{{ task_instance.xcom_pull(task_ids="transform_logs") }}',
+            'dataset_id': 'loadeddata',
+            'table_id': 'stagingtable'
+        },
     )
 
     # create_or_check_bucket = PythonOperator(
@@ -230,4 +242,4 @@ with DAG(
 
     # create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq
     
-    transform_logs >> create_bq_table >> load_csv_to_bq
+    transform_logs >> create_bq_table >> load_to_bq
