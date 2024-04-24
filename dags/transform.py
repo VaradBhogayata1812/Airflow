@@ -45,29 +45,29 @@ schema_fields = [
 BUCKET_NAME = 'transformedlogfiles'
 GCS_PATH = 'transformed_logs/'
 
-def ensure_gcs_bucket_exists(bucket_name):
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
-    if not bucket.exists():
-        bucket.create(location='europe-north1')
-        print(f"Created new bucket: {bucket_name} in europe-north1")
-    else:
-        print(f"Bucket {bucket_name} already exists.")
+# def ensure_gcs_bucket_exists(bucket_name):
+#     client = storage.Client()
+#     bucket = client.bucket(bucket_name)
+#     if not bucket.exists():
+#         bucket.create(location='europe-north1')
+#         print(f"Created new bucket: {bucket_name} in europe-north1")
+#     else:
+#         print(f"Bucket {bucket_name} already exists.")
 
-def clean_and_upload_to_gcs(bucket_name, local_directory, gcs_directory):
-    client = storage.Client()
-    bucket = client.bucket(bucket_name)
-    blobs = list(client.list_blobs(bucket, prefix=gcs_directory))
-    for blob in blobs:
-        blob.delete()
-        print(f"Deleted {blob.name} from bucket {bucket_name}")
+# def clean_and_upload_to_gcs(bucket_name, local_directory, gcs_directory):
+#     client = storage.Client()
+#     bucket = client.bucket(bucket_name)
+#     blobs = list(client.list_blobs(bucket, prefix=gcs_directory))
+#     for blob in blobs:
+#         blob.delete()
+#         print(f"Deleted {blob.name} from bucket {bucket_name}")
     
-    for file_name in os.listdir(local_directory):
-        if file_name.endswith('.csv'):
-            blob_path = os.path.join(gcs_directory, file_name)
-            blob = bucket.blob(blob_path)
-            blob.upload_from_filename(os.path.join(local_directory, file_name))
-            print(f"Uploaded {file_name} to GCS path {blob_path}")
+#     for file_name in os.listdir(local_directory):
+#         if file_name.endswith('.csv'):
+#             blob_path = os.path.join(gcs_directory, file_name)
+#             blob = bucket.blob(blob_path)
+#             blob.upload_from_filename(os.path.join(local_directory, file_name))
+#             print(f"Uploaded {file_name} to GCS path {blob_path}")
 
 def prepare_output_directory(directory_path):
     if not os.path.exists(directory_path):
@@ -201,11 +201,11 @@ with DAG(
         dag=dag,
     )
 
-    create_or_check_bucket = PythonOperator(
-        task_id='ensure_bucket_exists',
-        python_callable=ensure_gcs_bucket_exists,
-        op_kwargs={'bucket_name': BUCKET_NAME},
-    )
+    # create_or_check_bucket = PythonOperator(
+    #     task_id='ensure_bucket_exists',
+    #     python_callable=ensure_gcs_bucket_exists,
+    #     op_kwargs={'bucket_name': BUCKET_NAME},
+    # )
 
     transform_logs = PythonOperator(
         task_id='transform_logs',
@@ -216,16 +216,18 @@ with DAG(
         },
     )
 
-    upload_transformed = PythonOperator(
-        task_id='upload_transformed_logs',
-        python_callable=clean_and_upload_to_gcs,
-        op_kwargs={
-            'bucket_name': BUCKET_NAME,
-            'local_directory': '/opt/airflow/transformed/W3SVC1/',
-            'gcs_directory': GCS_PATH,
-        },
-    )
+    # upload_transformed = PythonOperator(
+    #     task_id='upload_transformed_logs',
+    #     python_callable=clean_and_upload_to_gcs,
+    #     op_kwargs={
+    #         'bucket_name': BUCKET_NAME,
+    #         'local_directory': '/opt/airflow/transformed/W3SVC1/',
+    #         'gcs_directory': GCS_PATH,
+    #     },
+    # )
 
     
 
-    create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq
+    # create_or_check_bucket >> transform_logs >> upload_transformed >> create_bq_table >> load_csv_to_bq
+    
+    transform_logs >> create_bq_table >> load_csv_to_bq
