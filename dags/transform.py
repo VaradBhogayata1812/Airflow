@@ -41,7 +41,6 @@ schema_fields = [
     {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
     {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
     {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
     {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
@@ -95,12 +94,6 @@ def prepare_output_directory(directory_path):
         print(f"Created directory {directory_path}")
     else:
         print(f"Directory {directory_path} already exists.")
-
-def is_crawler(df):
-    """Identifies crawler IPs based on access to 'robots.txt'."""
-    crawler_ips = df[df['cs_uri_stem'] == '/robots.txt']['c_ip'].unique()
-    df['is_crawler'] = df['c_ip'].isin(crawler_ips)
-    return df
 
 @lru_cache(maxsize=None)
 def fetch_geolocation(ip_address):
@@ -180,7 +173,6 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
 
-        df = is_crawler(df)
         df = add_geolocation(df)
         df = transform_datetime(df)
         transformed_file = filename.replace('.log', '.csv')
@@ -244,13 +236,13 @@ with DAG(
                     WHEN cs_User_Agent LIKE '%OPR%' OR cs_User_Agent LIKE '%Opera%' THEN 'Opera'
                     ELSE 'Other'
                 END AS Browser,
-                SUBSTR(cs_uri_stem, STRPOS(cs_uri_stem, '.') + 1) AS Extension
+                SUBSTR(cs_uri_stem, STRPOS(cs_uri_stem, '.') + 1) AS Extension,
+                MAX(CASE WHEN cs_uri_stem = '/robots.txt' THEN 1 ELSE 0 END) OVER (PARTITION BY c_ip) as is_crawler
             FROM
                 etl-project-418923.loadeddata.stagingtable
         """,
         use_legacy_sql=False,
     )
-
 
     create_or_check_bucket = PythonOperator(
         task_id='ensure_bucket_exists',
