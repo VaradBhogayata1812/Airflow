@@ -173,7 +173,7 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
 
-        #df = add_geolocation(df)
+        df = add_geolocation(df)
         df = transform_datetime(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
