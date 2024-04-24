@@ -10,6 +10,7 @@ from functools import lru_cache
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator
 from google.cloud import bigquery
+from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
 
 default_args = {
     'owner': 'airflow',
