@@ -41,7 +41,11 @@ schema_fields = [
     {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
+    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'},
+    {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'}
 ]
 
 BUCKET_NAME = 'transformedlogfiles'
@@ -177,7 +181,7 @@ def process_log_file(input_directory, filename, output_directory):
             return
 
         df = is_crawler(df)
-        # df = add_geolocation(df)
+        df = add_geolocation(df)
         df = transform_datetime(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
