@@ -61,7 +61,8 @@ with DAG(
         task_id='transfer_data_to_final_table',
         sql=f'SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.{STAGING_TABLE_NAME}`',
         destination_dataset_table=f'{PROJECT_ID}.{DATASET_NAME}.{FINAL_TABLE_NAME}',
-        write_disposition='WRITE_TRUNCATE'
+        write_disposition='WRITE_TRUNCATE',
+        use_legacy_sql=False  # Ensuring to use standard SQL
     )
 
     # Define dependencies
