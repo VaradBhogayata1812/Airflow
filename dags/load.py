@@ -1,10 +1,9 @@
 from airflow import DAG
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+from airflow.utils.dates import days_ago
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyTableOperator,
-    BigQueryCreateDatasetOperator,
-    BigQueryInsertJobOperator
+    BigQueryExecuteQueryOperator
 )
 
 # Default arguments for the DAG
@@ -35,13 +34,11 @@ with DAG(
     tags=['load'],
 ) as dag:
 
-    # Task to create the dataset if it doesn't exist
-    create_dataset = BigQueryCreateDatasetOperator(
+    # Task to create the dataset if it doesn't exist using a SQL statement
+    create_dataset = BigQueryExecuteQueryOperator(
         task_id='create_dataset',
-        dataset_id=DATASET_NAME,
-        project_id=PROJECT_ID,
-        location=LOCATION,
-        exists_ok=True
+        sql=f'CREATE SCHEMA IF NOT EXISTS `{PROJECT_ID}.{DATASET_NAME}` LOCATION "{LOCATION}"',
+        use_legacy_sql=False
     )
 
     # Task to ensure the final table is set up
@@ -54,23 +51,16 @@ with DAG(
     )
 
     # Task to transfer data from the staging table to the final table
-    transfer_data_to_final_table = BigQueryInsertJobOperator(
+    transfer_data_to_final_table = BigQueryExecuteQueryOperator(
         task_id='transfer_data_to_final_table',
-        configuration={
-            'query': {
-                'query': f'SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.{STAGING_TABLE_NAME}`',
-                'destinationTable': {
-                    'projectId': PROJECT_ID,
-                    'datasetId': DATASET_NAME,
-                    'tableId': FINAL_TABLE_NAME,
-                },
-                'writeDisposition': 'WRITE_TRUNCATE'
-            }
-        }
+        sql=f'SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.{STAGING_TABLE_NAME}`',
+        destination_dataset_table=f'{PROJECT_ID}.{DATASET_NAME}.{FINAL_TABLE_NAME}',
+        write_disposition='WRITE_TRUNCATE'
     )
 
     # Define dependencies
     create_dataset >> setup_final_table >> transfer_data_to_final_table
+
 
 
 
