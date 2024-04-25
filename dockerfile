@@ -17,6 +17,7 @@ USER airflow
 # Install Python packages needed for BigQuery
 RUN pip install --no-cache-dir google-cloud-bigquery
 
+USER root
 # Copy your Airflow configuration scripts and DAGs into the container
 COPY bashfile /bashfile
 COPY dags/ /opt/airflow/dags/
@@ -24,9 +25,13 @@ COPY dags/ /opt/airflow/dags/
 # Make the bash file executable
 RUN chmod +x /bashfile
 
+# Switch back to the airflow user for security reasons
+USER airflow
+
 # Set the entrypoint to bash and run your custom script
 ENTRYPOINT ["/bin/bash"]
 CMD ["/bashfile"]
+
 
 
 
