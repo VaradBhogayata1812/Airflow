@@ -41,10 +41,11 @@ schema_fields = [
     {'name': 'sc_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'cs_bytes', 'type': 'INTEGER', 'mode': 'NULLABLE'},
     {'name': 'time_taken', 'type': 'INTEGER', 'mode': 'NULLABLE'},
-    {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
-    {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
-    {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
-    {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'}
+    # {'name': 'postal_code', 'type': 'STRING', 'mode': 'NULLABLE'},
+    # {'name': 'geo_city', 'type': 'STRING', 'mode': 'NULLABLE'},
+    # {'name': 'geo_state', 'type': 'STRING', 'mode': 'NULLABLE'},
+    # {'name': 'geo_country', 'type': 'STRING', 'mode': 'NULLABLE'},
+    {'name': 'is_crawler', 'type': 'BOOLEAN', 'mode': 'NULLABLE'}
 ]
 
 BUCKET_NAME = 'transformedlogfiles'
@@ -123,6 +124,12 @@ def transform_datetime(df):
     df['time'] = df['time'].astype(str)
     return df
 
+def is_crawler(df):
+    """Identifies crawler IPs based on access to 'robots.txt'."""
+    crawler_ips = df[df['cs_uri_stem'] == '/robots.txt']['c_ip'].unique()
+    df['is_crawler'] = df['c_ip'].isin(crawler_ips)
+    return df
+
 def process_and_transform_logs(input_directory, output_directory):
     prepare_output_directory(output_directory)
     for filename in os.listdir(input_directory):
@@ -173,8 +180,9 @@ def process_log_file(input_directory, filename, output_directory):
             print(f"Column mismatch in {filename}, found {df.shape[1]} columns")
             return
 
-        df = add_geolocation(df)
+        # df = add_geolocation(df)
         df = transform_datetime(df)
+        df = is_crawler(df)
         transformed_file = filename.replace('.log', '.csv')
         transformed_path = os.path.join(output_directory, transformed_file)
         try:
@@ -238,7 +246,6 @@ with DAG(
                     ELSE 'Other'
                 END AS Browser,
                 SUBSTR(cs_uri_stem, STRPOS(cs_uri_stem, '.') + 1) AS Extension,
-                MAX(CASE WHEN cs_uri_stem = '/robots.txt' THEN 1 ELSE 0 END) OVER (PARTITION BY c_ip) as is_crawler
             FROM
                 etl-project-418923.loadeddata.stagingtable
         """,
