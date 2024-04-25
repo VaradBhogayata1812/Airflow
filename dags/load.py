@@ -1,10 +1,8 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyTableOperator,
-    BigQueryToBigQueryOperator,
-)
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 
 default_args = {
     'owner': 'airflow',
@@ -39,11 +37,12 @@ with DAG(
     transfer_data_to_final_table = BigQueryToBigQueryOperator(
         task_id='transfer_data_to_final_table',
         source_project_dataset_tables=f'{DATASET_NAME}.{STAGING_TABLE_NAME}',
-        destination_project_dataset_table=f'etl-project-418923:{DATASET_NAME}.{FINAL_TABLE_NAME}',
+        destination_project_dataset_table=f'{DATASET_NAME}.{FINAL_TABLE_NAME}',
         write_disposition='WRITE_TRUNCATE',
     )
 
     setup_final_table >> transfer_data_to_final_table
+
 
 
 
