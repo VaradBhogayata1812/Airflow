@@ -53,8 +53,8 @@ GCS_PATH = 'transformed_logs/'
 
 def load_file_directly_to_bigquery(file_path, table_id):
     client = bigquery.Client()
-    dataset_ref = client.dataset('your_dataset_name')
-    table_ref = dataset_ref.table('your_table_name')
+    dataset_ref = client.dataset('loadeddata')
+    table_ref = dataset_ref.table('stagingtable')
     
     job_config = bigquery.LoadJobConfig()
     job_config.source_format = bigquery.SourceFormat.CSV
