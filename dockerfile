@@ -1,7 +1,6 @@
 # Using a newer stable version of Apache Airflow
 FROM apache/airflow:2.4.0
 
-# Run as root to install packages
 USER root
 
 # Install necessary tools and Google Cloud SDK
@@ -12,11 +11,11 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y google-cloud-sdk
 
+# Switch back to the airflow user before installing Python packages
+USER airflow
+
 # Install Python packages needed for BigQuery
 RUN pip install --no-cache-dir google-cloud-bigquery
-
-# Change back to the airflow user for security reasons
-USER airflow
 
 # Copy your Airflow configuration scripts and DAGs into the container
 COPY bashfile /bashfile
@@ -28,6 +27,7 @@ RUN chmod +x /bashfile
 # Set the entrypoint to bash and run your custom script
 ENTRYPOINT ["/bin/bash"]
 CMD ["/bashfile"]
+
 
 
 
