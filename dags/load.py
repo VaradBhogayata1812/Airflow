@@ -3,23 +3,29 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyTableOperator,
-    BigQueryInsertJobOperator,
+    BigQueryCreateDatasetOperator,
+    BigQueryInsertJobOperator
 )
 
+# Default arguments for the DAG
 default_args = {
     'owner': 'airflow',
     'start_date': days_ago(1),
     'email': ['varadbhogayata78@gmail.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
+    'email_on_failure': True,
+    'email_on_retry': True,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
 
+# Constants for BigQuery resources
+PROJECT_ID = 'etl-project-418923'
 DATASET_NAME = 'loadeddata'
 STAGING_TABLE_NAME = 'processedtable'
 FINAL_TABLE_NAME = 'loadedlogfiles'
+LOCATION = 'europe-north1'
 
+# Define the DAG
 with DAG(
     'load',
     default_args=default_args,
@@ -29,29 +35,43 @@ with DAG(
     tags=['load'],
 ) as dag:
 
+    # Task to create the dataset if it doesn't exist
+    create_dataset = BigQueryCreateDatasetOperator(
+        task_id='create_dataset',
+        dataset_id=DATASET_NAME,
+        project_id=PROJECT_ID,
+        location=LOCATION,
+        exists_ok=True
+    )
+
+    # Task to ensure the final table is set up
     setup_final_table = BigQueryCreateEmptyTableOperator(
         task_id='setup_final_table',
         dataset_id=DATASET_NAME,
         table_id=FINAL_TABLE_NAME,
-        exists_ok=True,
+        project_id=PROJECT_ID,
+        exists_ok=True
     )
 
+    # Task to transfer data from the staging table to the final table
     transfer_data_to_final_table = BigQueryInsertJobOperator(
         task_id='transfer_data_to_final_table',
         configuration={
             'query': {
-                'query': f'SELECT * FROM `{DATASET_NAME}.{STAGING_TABLE_NAME}`',
+                'query': f'SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.{STAGING_TABLE_NAME}`',
                 'destinationTable': {
-                    'projectId': 'etl-project-418923',
+                    'projectId': PROJECT_ID,
                     'datasetId': DATASET_NAME,
                     'tableId': FINAL_TABLE_NAME,
                 },
-                'writeDisposition': 'WRITE_TRUNCATE',
+                'writeDisposition': 'WRITE_TRUNCATE'
             }
-        },
+        }
     )
 
-    setup_final_table >> transfer_data_to_final_table
+    # Define dependencies
+    create_dataset >> setup_final_table >> transfer_data_to_final_table
+
 
 
 
