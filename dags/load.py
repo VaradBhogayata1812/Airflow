@@ -1,10 +1,9 @@
 from airflow import DAG
+from airflow.operators.python import PythonOperator
 from datetime import timedelta
 from airflow.utils.dates import days_ago
-from airflow.providers.google.cloud.operators.bigquery import (
-    BigQueryCreateEmptyTableOperator,
-    BigQueryExecuteQueryOperator
-)
+from google.cloud import bigquery
+from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyTableOperator, BigQueryExecuteQueryOperator
 
 # Default arguments for the DAG
 default_args = {
@@ -24,6 +23,14 @@ STAGING_TABLE_NAME = 'processedtable'
 FINAL_TABLE_NAME = 'loadedlogfiles'
 LOCATION = 'europe-north1'
 
+# Function to create a dataset
+def create_bigquery_dataset():
+    client = bigquery.Client()
+    dataset_id = f"{PROJECT_ID}.{DATASET_NAME}"
+    dataset = bigquery.Dataset(dataset_id)
+    dataset.location = LOCATION
+    dataset = client.create_dataset(dataset, exists_ok=True)
+
 # Define the DAG
 with DAG(
     'load',
@@ -34,11 +41,10 @@ with DAG(
     tags=['load'],
 ) as dag:
 
-    # Task to create the dataset if it doesn't exist using a SQL statement
-    create_dataset = BigQueryExecuteQueryOperator(
+    # Task to create the dataset if it doesn't exist using Python code
+    create_dataset = PythonOperator(
         task_id='create_dataset',
-        sql=f'CREATE SCHEMA IF NOT EXISTS `{PROJECT_ID}.{DATASET_NAME}` LOCATION "{LOCATION}"',
-        use_legacy_sql=False
+        python_callable=create_bigquery_dataset
     )
 
     # Task to ensure the final table is set up
@@ -60,6 +66,7 @@ with DAG(
 
     # Define dependencies
     create_dataset >> setup_final_table >> transfer_data_to_final_table
+
 
 
 
